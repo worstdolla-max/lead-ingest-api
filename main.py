@@ -11,6 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from supabase import Client, create_client
 
+from fastapi.responses import HTMLResponse
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_form():
+    html_path = os.path.join(os.path.dirname(__file__), "index(1).html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 # ---------- App FastAPI ----------
 
 app = FastAPI(title="Immo AI Backend")

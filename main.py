@@ -14,8 +14,12 @@ from supabase import Client, create_client
 # ---------- Config Resend ----------
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+print(">>> RESEND_API_KEY existe en prod ?", bool(RESEND_API_KEY))
 if RESEND_API_KEY:
+    print(">>> RESEND_API_KEY commence par :", RESEND_API_KEY[:5])
     resend.api_key = RESEND_API_KEY
+else:
+    print(">>> RESEND_API_KEY manquante !")
 
 # ---------- Config Supabase (lazy — server starts even if creds are missing/invalid) ----------
 

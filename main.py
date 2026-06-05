@@ -114,11 +114,14 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
 
 app = FastAPI(title="Immo AI Backend")
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 

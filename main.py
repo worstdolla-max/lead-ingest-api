@@ -14,11 +14,7 @@ from supabase import Client, create_client
 from fastapi.responses import HTMLResponse
 
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_form():
-    html_path = os.path.join(os.path.dirname(__file__), "index(1).html")
-    with open(html_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+
 # ---------- App FastAPI ----------
 
 app = FastAPI(title="Immo AI Backend")
@@ -30,7 +26,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key"],
 )
-
+@app.get("/", response_class=HTMLResponse)
+async def serve_form():
+    html_path = os.path.join(os.path.dirname(__file__), "index(1).html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 # ---------- Config Resend ----------
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")

@@ -11,6 +11,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from supabase import Client, create_client
 
+# ---------- App FastAPI ----------
+
+app = FastAPI(title="Immo AI Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
+)
+
 # ---------- Config Resend ----------
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
@@ -20,21 +32,6 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 else:
     print(">>> RESEND_API_KEY manquante !")
-
-@app.post("/api/ingest-lead")
-async def ingest_lead(...):
-    print(">>> /api/ingest-lead appelé (prod)")
-
-    # ... insertion du lead, récupération de l'agence, etc.
-
-    try:
-        print(">>> Envoi email via Resend...")
-        email = resend.Emails.send(params)
-        print(">>> Resend OK:", email)
-    except Exception as e:
-        print(">>> Resend ERROR:", repr(e))
-
-    return {"ok": True}
 
 # ---------- Config Supabase (lazy — server starts even if creds are missing/invalid) ----------
 
@@ -130,17 +127,7 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
         raise HTTPException(status_code=401, detail="Unauthorized: missing or invalid X-API-Key.")
 
 
-# ---------- App FastAPI ----------
-
-app = FastAPI(title="Immo AI Backend")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
-)
+# ---------- Logging Middleware ----------
 
 
 async def _write_api_log(method: str, path: str, status_code: int, duration_ms: int) -> None:
@@ -263,6 +250,8 @@ def ingest_lead(payload: LeadIngest):
     4) Envoie un email à l'agence via Resend
     """
 
+    print(">>> /api/ingest-lead appelé (prod)")
+
     db = get_supabase()
     try:
         lead_insert = (
@@ -282,9 +271,11 @@ def ingest_lead(payload: LeadIngest):
             .execute()
         )
     except Exception as e:
+        print(">>> Erreur insertion lead:", repr(e))
         raise HTTPException(status_code=500, detail=f"Erreur insertion lead: {e}")
 
     if not lead_insert.data:
+        print(">>> Insertion lead échouée (pas de data)")
         raise HTTPException(status_code=500, detail="Insertion lead échouée.")
 
     lead_row = lead_insert.data[0]
@@ -316,7 +307,12 @@ def ingest_lead(payload: LeadIngest):
             }
         ).execute()
     except Exception as e:
+        print(">>> Erreur insertion insights:", repr(e))
         raise HTTPException(status_code=500, detail=f"Erreur insertion insights: {e}")
+
+    # ----------- Partie email Resend -----------
+
+    print(">>> RESEND_API_KEY truthy dans la route ?", bool(RESEND_API_KEY))
 
     try:
         agency_row = (
@@ -326,31 +322,43 @@ def ingest_lead(payload: LeadIngest):
             .limit(1)
             .execute()
         )
+        print(">>> agency_row.data:", agency_row.data)
 
         if agency_row.data:
             agency_contact_email = agency_row.data[0].get("contact_email")
             agency_name = agency_row.data[0].get("name") or "Agence"
+            print(">>> agency_contact_email:", agency_contact_email)
+            print(">>> agency_name:", agency_name)
 
             if RESEND_API_KEY and agency_contact_email:
-                resend.Emails.send(
-                    {
-                        "from": "LeadFlow <onboarding@resend.dev>",
-                        "to": [agency_contact_email],
-                        "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
-                        "html": f"""
-                          <h3>Nouveau lead reçu</h3>
-                          <p><strong>Agence :</strong> {agency_name}</p>
-                          <p><strong>Nom :</strong> {payload.name or ''}</p>
-                          <p><strong>Email :</strong> {payload.email or ''}</p>
-                          <p><strong>Téléphone :</strong> {payload.phone or ''}</p>
-                          <p><strong>Source :</strong> {payload.source or ''}</p>
-                          <p><strong>Message :</strong> {payload.message}</p>
-                          <p><strong>Score IA :</strong> {score}</p>
-                        """,
-                    }
-                )
-    except Exception:
-        pass
+                print(">>> Envoi email via Resend...")
+                try:
+                    email = resend.Emails.send(
+                        {
+                            "from": "LeadFlow <onboarding@resend.dev>",
+                            "to": [agency_contact_email],
+                            "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
+                            "html": f"""
+                              <h3>Nouveau lead reçu</h3>
+                              <p><strong>Agence :</strong> {agency_name}</p>
+                              <p><strong>Nom :</strong> {payload.name or ''}</p>
+                              <p><strong>Email :</strong> {payload.email or ''}</p>
+                              <p><strong>Téléphone :</strong> {payload.phone or ''}</p>
+                              <p><strong>Source :</strong> {payload.source or ''}</p>
+                              <p><strong>Message :</strong> {payload.message}</p>
+                              <p><strong>Score IA :</strong> {score}</p>
+                            """,
+                        }
+                    )
+                    print(">>> Resend OK:", email)
+                except Exception as e:
+                    print(">>> Resend ERROR:", repr(e))
+            else:
+                print(">>> Pas d'envoi email: RESEND_API_KEY ou agency_contact_email manquant")
+        else:
+            print(">>> Aucune agence trouvée pour id:", payload.agency_id)
+    except Exception as e:
+        print(">>> Erreur récupération agence / envoi email:", repr(e))
 
     return {"status": "ok", "lead_id": lead_id, "score": score}
 

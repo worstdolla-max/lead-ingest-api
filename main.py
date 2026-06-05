@@ -5,10 +5,17 @@ import time
 from typing import List, Literal, Optional
 
 import anthropic
+import resend
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from supabase import create_client, Client
+from supabase import Client, create_client
+
+# ---------- Config Resend ----------
+
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 # ---------- Config Supabase (lazy — server starts even if creds are missing/invalid) ----------
 
@@ -68,11 +75,6 @@ _FALLBACK_INSIGHTS = {
 
 
 def analyse_lead_with_claude(message: str) -> dict:
-    """
-    Calls Claude to analyse a lead message.
-    Returns a dict with the insight fields.
-    Falls back to _FALLBACK_INSIGHTS if the API key is absent or the call fails.
-    """
     if not ANTHROPIC_API_KEY:
         return _FALLBACK_INSIGHTS.copy()
 
@@ -86,7 +88,6 @@ def analyse_lead_with_claude(message: str) -> dict:
         )
         raw = response.content[0].text.strip()
 
-        # Strip markdown code fences if Claude wraps the JSON
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -113,8 +114,6 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
 # ---------- App FastAPI ----------
 
 app = FastAPI(title="Immo AI Backend")
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -240,11 +239,11 @@ def health_check():
 def ingest_lead(payload: LeadIngest):
     """
     1) Insère le lead brut dans la table leads
-    2) Appelle (plus tard) le service IA pour générer un résumé + score
+    2) Appelle le service IA pour générer un résumé + score
     3) Insère les insights dans lead_insights
+    4) Envoie un email à l'agence via Resend
     """
 
-    # 1) Insérer dans leads
     db = get_supabase()
     try:
         lead_insert = (
@@ -272,7 +271,6 @@ def ingest_lead(payload: LeadIngest):
     lead_row = lead_insert.data[0]
     lead_id = lead_row["id"]
 
-    # 2) Appel Claude pour analyser le message du prospect
     insights = analyse_lead_with_claude(payload.message)
 
     summary = insights.get("summary")
@@ -284,39 +282,64 @@ def ingest_lead(payload: LeadIngest):
     email_reply_suggestion = insights.get("email_reply_suggestion")
     tags = insights.get("tags", [])
 
-    # 3) Insérer les insights
     try:
-        insights_insert = (
-            db.table("lead_insights")
-            .insert(
-                {
-                    "lead_id": lead_id,
-                    "summary": summary,
-                    "budget": budget,
-                    "timeline": timeline,
-                    "property_type": property_type,
-                    "location": location,
-                    "score": score,
-                    "email_reply_suggestion": email_reply_suggestion,
-                    "tags": tags,
-                }
-            )
-            .execute()
-        )
+        db.table("lead_insights").insert(
+            {
+                "lead_id": lead_id,
+                "summary": summary,
+                "budget": budget,
+                "timeline": timeline,
+                "property_type": property_type,
+                "location": location,
+                "score": score,
+                "email_reply_suggestion": email_reply_suggestion,
+                "tags": tags,
+            }
+        ).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur insertion insights: {e}")
+
+    try:
+        agency_row = (
+            db.table("agencies")
+            .select("contact_email, name")
+            .eq("id", payload.agency_id)
+            .limit(1)
+            .execute()
+        )
+
+        if agency_row.data:
+            agency_contact_email = agency_row.data[0].get("contact_email")
+            agency_name = agency_row.data[0].get("name") or "Agence"
+
+            if RESEND_API_KEY and agency_contact_email:
+                resend.Emails.send(
+                    {
+                        "from": "LeadFlow <onboarding@resend.dev>",
+                        "to": [agency_contact_email],
+                        "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
+                        "html": f"""
+                          <h3>Nouveau lead reçu</h3>
+                          <p><strong>Agence :</strong> {agency_name}</p>
+                          <p><strong>Nom :</strong> {payload.name or ''}</p>
+                          <p><strong>Email :</strong> {payload.email or ''}</p>
+                          <p><strong>Téléphone :</strong> {payload.phone or ''}</p>
+                          <p><strong>Source :</strong> {payload.source or ''}</p>
+                          <p><strong>Message :</strong> {payload.message}</p>
+                          <p><strong>Score IA :</strong> {score}</p>
+                        """,
+                    }
+                )
+    except Exception:
+        pass
 
     return {"status": "ok", "lead_id": lead_id, "score": score}
 
 
 @app.get("/api/leads", response_model=List[LeadOut], dependencies=[Depends(verify_api_key)])
 def get_leads(agency_id: str):
-    """
-    Renvoie la liste des leads + insights pour une agence.
-    """
     db = get_supabase()
     try:
-        # Jointure via RPC simple : on récupère les leads et leurs insights
         resp = (
             db.table("leads")
             .select(
@@ -355,9 +378,6 @@ def get_leads(agency_id: str):
 
 @app.get("/api/leads/{lead_id}", response_model=LeadDetail, dependencies=[Depends(verify_api_key)])
 def get_lead(lead_id: str):
-    """
-    Retourne un lead et ses insights complets par son UUID.
-    """
     db = get_supabase()
     try:
         resp = (
@@ -405,12 +425,7 @@ def get_lead(lead_id: str):
 
 @app.patch("/api/leads/{lead_id}", response_model=LeadPatchResponse, dependencies=[Depends(verify_api_key)])
 def patch_lead(lead_id: str, body: LeadPatchRequest):
-    """
-    Met à jour manual_score, status et/ou notes d'un lead existant.
-    """
     db = get_supabase()
-
-    # Build update payload — only include fields that were explicitly sent
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=422, detail="Aucun champ à mettre à jour fourni.")
@@ -446,9 +461,6 @@ def patch_lead(lead_id: str, body: LeadPatchRequest):
 
 @app.get("/api/logs", dependencies=[Depends(verify_api_key)])
 def get_logs(limit: int = 100):
-    """
-    Retourne les N dernières entrées de api_logs (défaut: 100).
-    """
     db = get_supabase()
     try:
         resp = (

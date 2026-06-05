@@ -21,6 +21,21 @@ if RESEND_API_KEY:
 else:
     print(">>> RESEND_API_KEY manquante !")
 
+@app.post("/api/ingest-lead")
+async def ingest_lead(...):
+    print(">>> /api/ingest-lead appelé (prod)")
+
+    # ... insertion du lead, récupération de l'agence, etc.
+
+    try:
+        print(">>> Envoi email via Resend...")
+        email = resend.Emails.send(params)
+        print(">>> Resend OK:", email)
+    except Exception as e:
+        print(">>> Resend ERROR:", repr(e))
+
+    return {"ok": True}
+
 # ---------- Config Supabase (lazy — server starts even if creds are missing/invalid) ----------
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")

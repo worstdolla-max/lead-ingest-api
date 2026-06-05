@@ -8,12 +8,9 @@ import anthropic
 import resend
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
-from supabase import Client, create_client
-
 from fastapi.responses import HTMLResponse
-
-
+from pydantic import BaseModel, EmailStr
+from supabase import create_client, Client
 
 # ---------- App FastAPI ----------
 
@@ -26,11 +23,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key"],
 )
+
+# ---------- Route formulaire HTML ----------
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_form():
     html_path = os.path.join(os.path.dirname(__file__), "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
 # ---------- Config Resend ----------
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
@@ -59,13 +62,13 @@ else:
 
 
 def get_supabase() -> Client:
-    """Return the Supabase client or raise a 503 if unavailable."""
     if supabase is None:
         raise HTTPException(
             status_code=503,
             detail=f"Supabase unavailable: {_supabase_error}",
         )
     return supabase
+
 
 # ---------- Config Anthropic ----------
 
@@ -123,6 +126,7 @@ def analyse_lead_with_claude(message: str) -> dict:
     except Exception:
         return _FALLBACK_INSIGHTS.copy()
 
+
 # ---------- API Key auth ----------
 
 _API_KEY = os.environ.get("API_KEY")
@@ -130,28 +134,35 @@ _API_KEY = os.environ.get("API_KEY")
 
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
     if not _API_KEY:
-        raise HTTPException(status_code=500, detail="API_KEY not configured on the server.")
+        raise HTTPException(
+            status_code=500, detail="API_KEY not configured on the server."
+        )
     if x_api_key != _API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized: missing or invalid X-API-Key.")
+        raise HTTPException(
+            status_code=401, detail="Unauthorized: missing or invalid X-API-Key."
+        )
 
 
 # ---------- Logging Middleware ----------
 
 
-async def _write_api_log(method: str, path: str, status_code: int, duration_ms: int) -> None:
-    """Fire-and-forget: write one row to api_logs. Never raises."""
+async def _write_api_log(
+    method: str, path: str, status_code: int, duration_ms: int
+) -> None:
     if supabase is None:
         return
     try:
         await asyncio.to_thread(
-            lambda: supabase.table("api_logs").insert(
+            lambda: supabase.table("api_logs")
+            .insert(
                 {
                     "method": method,
                     "path": path,
                     "status_code": status_code,
                     "duration_ms": duration_ms,
                 }
-            ).execute()
+            )
+            .execute()
         )
     except Exception:
         pass
@@ -251,13 +262,6 @@ def health_check():
 
 @app.post("/api/ingest-lead", dependencies=[Depends(verify_api_key)])
 def ingest_lead(payload: LeadIngest):
-    """
-    1) Insère le lead brut dans la table leads
-    2) Appelle le service IA pour générer un résumé + score
-    3) Insère les insights dans lead_insights
-    4) Envoie un email à l'agence via Resend
-    """
-
     print(">>> /api/ingest-lead appelé (prod)")
 
     db = get_supabase()
@@ -318,8 +322,7 @@ def ingest_lead(payload: LeadIngest):
         print(">>> Erreur insertion insights:", repr(e))
         raise HTTPException(status_code=500, detail=f"Erreur insertion insights: {e}")
 
-    # ----------- Partie email Resend -----------
-
+    # ---------- Email Resend ----------
     print(">>> RESEND_API_KEY truthy dans la route ?", bool(RESEND_API_KEY))
 
     try:
@@ -336,7 +339,6 @@ def ingest_lead(payload: LeadIngest):
             agency_contact_email = agency_row.data[0].get("contact_email")
             agency_name = agency_row.data[0].get("name") or "Agence"
             print(">>> agency_contact_email:", agency_contact_email)
-            print(">>> agency_name:", agency_name)
 
             if RESEND_API_KEY and agency_contact_email:
                 print(">>> Envoi email via Resend...")
@@ -349,10 +351,10 @@ def ingest_lead(payload: LeadIngest):
                             "html": f"""
                               <h3>Nouveau lead reçu</h3>
                               <p><strong>Agence :</strong> {agency_name}</p>
-                              <p><strong>Nom :</strong> {payload.name or ''}</p>
-                              <p><strong>Email :</strong> {payload.email or ''}</p>
-                              <p><strong>Téléphone :</strong> {payload.phone or ''}</p>
-                              <p><strong>Source :</strong> {payload.source or ''}</p>
+                              <p><strong>Nom :</strong> {payload.name or ""}</p>
+                              <p><strong>Email :</strong> {payload.email or ""}</p>
+                              <p><strong>Téléphone :</strong> {payload.phone or ""}</p>
+                              <p><strong>Source :</strong> {payload.source or ""}</p>
                               <p><strong>Message :</strong> {payload.message}</p>
                               <p><strong>Score IA :</strong> {score}</p>
                             """,
@@ -362,7 +364,7 @@ def ingest_lead(payload: LeadIngest):
                 except Exception as e:
                     print(">>> Resend ERROR:", repr(e))
             else:
-                print(">>> Pas d'envoi email: RESEND_API_KEY ou agency_contact_email manquant")
+                print(">>> Pas d'envoi : RESEND_API_KEY ou contact_email manquant")
         else:
             print(">>> Aucune agence trouvée pour id:", payload.agency_id)
     except Exception as e:
@@ -371,7 +373,9 @@ def ingest_lead(payload: LeadIngest):
     return {"status": "ok", "lead_id": lead_id, "score": score}
 
 
-@app.get("/api/leads", response_model=List[LeadOut], dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/api/leads", response_model=List[LeadOut], dependencies=[Depends(verify_api_key)]
+)
 def get_leads(agency_id: str):
     db = get_supabase()
     try:
@@ -411,7 +415,11 @@ def get_leads(agency_id: str):
     return leads
 
 
-@app.get("/api/leads/{lead_id}", response_model=LeadDetail, dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/api/leads/{lead_id}",
+    response_model=LeadDetail,
+    dependencies=[Depends(verify_api_key)],
+)
 def get_lead(lead_id: str):
     db = get_supabase()
     try:
@@ -458,20 +466,21 @@ def get_lead(lead_id: str):
     )
 
 
-@app.patch("/api/leads/{lead_id}", response_model=LeadPatchResponse, dependencies=[Depends(verify_api_key)])
+@app.patch(
+    "/api/leads/{lead_id}",
+    response_model=LeadPatchResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def patch_lead(lead_id: str, body: LeadPatchRequest):
     db = get_supabase()
     updates = body.model_dump(exclude_none=True)
     if not updates:
-        raise HTTPException(status_code=422, detail="Aucun champ à mettre à jour fourni.")
+        raise HTTPException(
+            status_code=422, detail="Aucun champ à mettre à jour fourni."
+        )
 
     try:
-        resp = (
-            db.table("leads")
-            .update(updates)
-            .eq("id", lead_id)
-            .execute()
-        )
+        resp = db.table("leads").update(updates).eq("id", lead_id).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur mise à jour: {e}")
 

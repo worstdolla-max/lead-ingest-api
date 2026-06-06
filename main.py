@@ -12,6 +12,11 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
 from supabase import create_client, Client
 
+from datetime import datetime, timedelta, time, timezone
+import zoneinfo  # Python 3.9+
+
+from fastapi.responses import HTMLResponse as FastAPIHTMLResponse
+
 # ---------- App FastAPI ----------
 
 app = FastAPI(title="Immo AI Backend")
@@ -68,6 +73,31 @@ def get_supabase() -> Client:
             detail=f"Supabase unavailable: {_supabase_error}",
         )
     return supabase
+
+
+def generate_time_slots(
+    tz_name: str = "Europe/Paris",
+    days_ahead: int = 3,
+    slots_per_day: int = 1,
+) -> list[datetime]:
+    """
+    Génère une petite liste de créneaux de rendez-vous dans le futur.
+    Pour le MVP : 1 créneau par jour sur 3 jours, à 11h00.
+    Tu pourras complexifier plus tard (plages horaires agence, etc.).
+    """
+    tz = zoneinfo.ZoneInfo(tz_name)
+    now = datetime.now(tz)
+
+    slots: list[datetime] = []
+    for i in range(days_ahead):
+        target_day = now.date() + timedelta(days=i + 1)  # à partir de demain
+        slot_time = datetime.combine(target_day, time(hour=11, minute=0), tz)
+        # Si on est déjà au-dessus, décale à 15h
+        if slot_time <= now:
+            slot_time = datetime.combine(target_day, time(hour=15, minute=0), tz)
+        slots.append(slot_time)
+
+    return slots
 
 
 # ---------- Config Anthropic ----------
@@ -252,12 +282,132 @@ class LeadDetail(BaseModel):
     tags: Optional[List[str]]
 
 
+class AppointmentConfirmQuery(BaseModel):
+    lead_id: str
+    slot_iso: str  # datetime ISO8601
+
+
 # ---------- Routes ----------
 
 
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/confirm-appointment", response_class=FastAPIHTMLResponse)
+def confirm_appointment(lead_id: str, slot_iso: str):
+    """
+    Quand l'agence clique sur un lien dans l'email, on arrive ici.
+    On enregistre le rendez-vous dans la table appointments et on affiche une confirmation.
+    """
+    db = get_supabase()
+
+    # 1) Récupérer le lead
+    try:
+        lead_resp = (
+            db.table("leads")
+            .select("id, agency_id, name, email, phone")
+            .eq("id", lead_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        return FastAPIHTMLResponse(
+            content=f"<h2>Erreur</h2><p>Impossible de récupérer le lead: {e}</p>",
+            status_code=500,
+        )
+
+    if not lead_resp.data:
+        return FastAPIHTMLResponse(
+            content="<h2>Lead introuvable</h2><p>Le lien de confirmation est invalide ou expiré.</p>",
+            status_code=404,
+        )
+
+    lead = lead_resp.data[0]
+
+    # 2) Parser le slot
+    try:
+        dt = datetime.fromisoformat(slot_iso)
+    except Exception:
+        return FastAPIHTMLResponse(
+            content="<h2>Créneau invalide</h2><p>Le créneau fourni est invalide.</p>",
+            status_code=400,
+        )
+
+    # 3) Insérer le rendez-vous
+    try:
+        appt_resp = (
+            db.table("appointments")
+            .insert(
+                {
+                    "lead_id": lead["id"],
+                    "agency_id": lead["agency_id"],
+                    "prospect_name": lead.get("name"),
+                    "prospect_email": lead.get("email"),
+                    "prospect_phone": lead.get("phone"),
+                    "status": "confirmed",
+                    "start_at": dt.isoformat(),
+                }
+            )
+            .execute()
+        )
+    except Exception as e:
+        return FastAPIHTMLResponse(
+            content=f"<h2>Erreur</h2><p>Impossible d'enregistrer le rendez-vous: {e}</p>",
+            status_code=500,
+        )
+
+    # 4) Afficher une page simple
+    human_date = dt.astimezone(zoneinfo.ZoneInfo("Europe/Paris")).strftime(
+        "%A %d %B %Y à %Hh%M"
+    )
+    html = f"""
+    <html>
+      <head>
+        <meta charset="utf-8"/>
+        <title>Rendez-vous confirmé</title>
+        <style>
+          body {{
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #05060a;
+            color: #f5f3ee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+          }}
+          .card {{
+            background: #11131b;
+            padding: 24px 28px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.12);
+            max-width: 420px;
+          }}
+          h2 {{
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 20px;
+          }}
+          p {{
+            font-size: 14px;
+            line-height: 1.6;
+          }}
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Rendez-vous confirmé</h2>
+          <p>Le rendez-vous avec <strong>{lead.get("name") or "le prospect"}</strong> est confirmé pour :</p>
+          <p><strong>{human_date}</strong></p>
+          <p style="margin-top:16px;font-size:12px;color:#9ca3af;">
+            Le rendez-vous a été enregistré dans LeadFlow. Vous pouvez à présent l'ajouter à votre agenda.
+          </p>
+        </div>
+      </body>
+    </html>
+    """
+    return FastAPIHTMLResponse(content=html, status_code=200)
 
 
 @app.post("/api/ingest-lead", dependencies=[Depends(verify_api_key)])
@@ -323,6 +473,8 @@ def ingest_lead(payload: LeadIngest):
         raise HTTPException(status_code=500, detail=f"Erreur insertion insights: {e}")
 
     # ---------- Email Resend ----------
+    # ----------- Partie email Resend + créneaux IA -----------
+
     print(">>> RESEND_API_KEY truthy dans la route ?", bool(RESEND_API_KEY))
 
     try:
@@ -333,6 +485,74 @@ def ingest_lead(payload: LeadIngest):
             .limit(1)
             .execute()
         )
+        print(">>> agency_row.data:", agency_row.data)
+
+        if agency_row.data:
+            agency_contact_email = agency_row.data[0].get("contact_email")
+            agency_name = agency_row.data[0].get("name") or "Agence"
+
+            # 1) Générer 3 créneaux de rendez-vous
+            slots = generate_time_slots(
+                tz_name="Europe/Paris", days_ahead=3, slots_per_day=1
+            )
+
+            # 2) Construire les liens de confirmation
+            base_url = os.environ.get(
+                "PUBLIC_BASE_URL", "https://lead-ingest-api-production.up.railway.app"
+            )
+            # On encode les slots en ISO + urlencode plus tard
+            slot_links_html = ""
+            for idx, dt in enumerate(slots, start=1):
+                iso = dt.isoformat()
+                # on passe lead_id et slot_iso en query string
+                confirm_url = (
+                    f"{base_url}/confirm-appointment?lead_id={lead_id}&slot_iso={iso}"
+                )
+                label = dt.strftime("%A %d %B %Y à %Hh%M")
+                slot_links_html += f'<p><a href="{confirm_url}" style="color:#1d4ed8; text-decoration:none;">Confirmer : {label}</a></p>'
+
+            if RESEND_API_KEY and agency_contact_email:
+                print(">>> Envoi email via Resend...")
+                try:
+                    html_body = f"""
+                      <h3>Nouveau lead reçu</h3>
+                      <p><strong>Agence :</strong> {agency_name}</p>
+                      <p><strong>Nom :</strong> {payload.name or ""}</p>
+                      <p><strong>Email :</strong> {payload.email or ""}</p>
+                      <p><strong>Téléphone :</strong> {payload.phone or ""}</p>
+                      <p><strong>Source :</strong> {payload.source or ""}</p>
+                      <p><strong>Message :</strong> {payload.message}</p>
+                      <p><strong>Score IA :</strong> {score}</p>
+                      <hr/>
+                      <h4>Résumé IA</h4>
+                      <p>{summary or ""}</p>
+                      <hr/>
+                      <h4>Proposition de rendez-vous</h4>
+                      <p>Choisissez un créneau ci-dessous pour confirmer automatiquement le rendez-vous :</p>
+                      {slot_links_html}
+                      <p style="font-size:12px;color:#6b7280;margin-top:16px;">
+                        Après confirmation, le rendez-vous sera enregistré dans votre espace LeadFlow.
+                      </p>
+                    """
+                    email = resend.Emails.send(
+                        {
+                            "from": "LeadFlow <onboarding@resend.dev>",
+                            "to": [agency_contact_email],
+                            "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
+                            "html": html_body,
+                        }
+                    )
+                    print(">>> Resend OK:", email)
+                except Exception as e:
+                    print(">>> Resend ERROR:", repr(e))
+            else:
+                print(
+                    ">>> Pas d'envoi email: RESEND_API_KEY ou agency_contact_email manquant"
+                )
+        else:
+            print(">>> Aucune agence trouvée pour id:", payload.agency_id)
+    except Exception as e:
+        print(">>> Erreur récupération agence / envoi email:", repr(e))
         print(">>> agency_row.data:", agency_row.data)
 
         if agency_row.data:

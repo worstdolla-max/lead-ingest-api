@@ -75,30 +75,20 @@ def get_supabase() -> Client:
         )
     return supabase
 
-
-def generate_time_slots(
-    tz_name: str = "Europe/Paris",
-    days_ahead: int = 3,
-    slots_per_day: int = 1,
-) -> list[datetime]:
-    """
-    Génère une petite liste de créneaux de rendez-vous dans le futur.
-    Pour le MVP : 1 créneau par jour sur 3 jours, à 11h00.
-    Tu pourras complexifier plus tard (plages horaires agence, etc.).
-    """
+def generate_time_slots(tz_name: str = "Europe/Paris", days_ahead: int = 3) -> list:
+    import zoneinfo
+    from datetime import date as dt_date
     tz = zoneinfo.ZoneInfo(tz_name)
     now = datetime.now(tz)
-
-    slots: list[datetime] = []
+    slots = []
     for i in range(days_ahead):
-        target_day = now.date() + timedelta(days=i + 1)  # à partir de demain
+        target_day = now.date() + timedelta(days=i + 1)
         slot_time = datetime.combine(target_day, dt_time(hour=11, minute=0), tz)
-        # Si on est déjà au-dessus, décale à 15h
         if slot_time <= now:
             slot_time = datetime.combine(target_day, dt_time(hour=15, minute=0), tz)
         slots.append(slot_time)
-
     return slots
+
 
 
 # ---------- Config Anthropic ----------
@@ -474,7 +464,7 @@ def ingest_lead(payload: LeadIngest):
         raise HTTPException(status_code=500, detail=f"Erreur insertion insights: {e}")
 
     # ---------- Email Resend ----------
-    # ----------- Partie email Resend + créneaux IA -----------
+    # ----------- Partie email Resend + créneaux IA ----------    # ----------- Partie email Resend + créneaux RDV -----------
 
     print(">>> RESEND_API_KEY truthy dans la route ?", bool(RESEND_API_KEY))
 
@@ -492,106 +482,75 @@ def ingest_lead(payload: LeadIngest):
             agency_contact_email = agency_row.data[0].get("contact_email")
             agency_name = agency_row.data[0].get("name") or "Agence"
 
-            # 1) Générer 3 créneaux de rendez-vous
-            slots = generate_time_slots(
-                tz_name="Europe/Paris", days_ahead=3, slots_per_day=1
+            # ---- Génération des 3 créneaux ----
+            slots = generate_time_slots(tz_name="Europe/Paris", days_ahead=3)
+
+            base_url = os.environ.get(
+                "PUBLIC_BASE_URL",
+                "https://lead-ingest-api-production.up.railway.app"
             )
 
-            # 2) Construire les liens de confirmation
-            base_url = os.environ.get(
-                "PUBLIC_BASE_URL", "https://lead-ingest-api-production.up.railway.app"
-            )
-            # On encode les slots en ISO + urlencode plus tard
             slot_links_html = ""
-            for idx, dt in enumerate(slots, start=1):
-                iso = dt.isoformat()
-                # on passe lead_id et slot_iso en query string
+            for dt_slot in slots:
+                import urllib.parse
+                iso = dt_slot.isoformat()
                 confirm_url = (
-                    f"{base_url}/confirm-appointment?lead_id={lead_id}&slot_iso={iso}"
+                    f"{base_url}/confirm-appointment"
+                    f"?lead_id={lead_id}"
+                    f"&slot_iso={urllib.parse.quote(iso)}"
                 )
-                label = dt.strftime("%A %d %B %Y à %Hh%M")
-                slot_links_html += f'<p><a href="{confirm_url}" style="color:#1d4ed8; text-decoration:none;">Confirmer : {label}</a></p>'
+                label = dt_slot.strftime("%A %d %B %Y à %Hh%M")
+                slot_links_html += (
+                    f'<p style="margin:8px 0;">'
+                    f'<a href="{confirm_url}" style="color:#1d4ed8;font-weight:600;text-decoration:none;">'
+                    f'✅ Confirmer : {label}'
+                    f'</a></p>'
+                )
 
             if RESEND_API_KEY and agency_contact_email:
                 print(">>> Envoi email via Resend...")
                 try:
                     html_body = f"""
-                      <h3>Nouveau lead reçu</h3>
+                    <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                      <h3 style="margin-top:0;">Nouveau lead reçu</h3>
                       <p><strong>Agence :</strong> {agency_name}</p>
-                      <p><strong>Nom :</strong> {payload.name or ""}</p>
-                      <p><strong>Email :</strong> {payload.email or ""}</p>
-                      <p><strong>Téléphone :</strong> {payload.phone or ""}</p>
-                      <p><strong>Source :</strong> {payload.source or ""}</p>
+                      <p><strong>Nom :</strong> {payload.name or ''}</p>
+                      <p><strong>Email :</strong> {payload.email or ''}</p>
+                      <p><strong>Téléphone :</strong> {payload.phone or ''}</p>
+                      <p><strong>Source :</strong> {payload.source or ''}</p>
                       <p><strong>Message :</strong> {payload.message}</p>
                       <p><strong>Score IA :</strong> {score}</p>
-                      <hr/>
-                      <h4>Résumé IA</h4>
-                      <p>{summary or ""}</p>
-                      <hr/>
-                      <h4>Proposition de rendez-vous</h4>
-                      <p>Choisissez un créneau ci-dessous pour confirmer automatiquement le rendez-vous :</p>
-                      {slot_links_html}
-                      <p style="font-size:12px;color:#6b7280;margin-top:16px;">
-                        Après confirmation, le rendez-vous sera enregistré dans votre espace LeadFlow.
+                      <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
+                      <h4 style="margin-bottom:8px;">Résumé IA</h4>
+                      <p style="color:#374151;">{summary or ''}</p>
+                      <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
+                      <h4 style="margin-bottom:8px;">📅 Proposer un rendez-vous</h4>
+                      <p style="color:#6b7280;margin-bottom:12px;">
+                        Cliquez sur un créneau ci-dessous pour confirmer le rendez-vous automatiquement :
                       </p>
+                      {slot_links_html}
+                      <p style="font-size:12px;color:#9ca3af;margin-top:20px;">
+                        Ce rendez-vous sera enregistré dans votre espace LeadFlow dès confirmation.
+                      </p>
+                    </div>
                     """
-                    email = resend.Emails.send(
+                    email_resp = resend.Emails.send(
                         {
                             "from": "LeadFlow <onboarding@resend.dev>",
                             "to": [agency_contact_email],
-                            "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
+                            "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'} (Score {score})",
                             "html": html_body,
                         }
                     )
-                    print(">>> Resend OK:", email)
+                    print(">>> Resend OK:", email_resp)
                 except Exception as e:
                     print(">>> Resend ERROR:", repr(e))
             else:
-                print(
-                    ">>> Pas d'envoi email: RESEND_API_KEY ou agency_contact_email manquant"
-                )
+                print(">>> Pas d'envoi email: RESEND_API_KEY ou agency_contact_email manquant")
         else:
             print(">>> Aucune agence trouvée pour id:", payload.agency_id)
     except Exception as e:
         print(">>> Erreur récupération agence / envoi email:", repr(e))
-        print(">>> agency_row.data:", agency_row.data)
-
-        if agency_row.data:
-            agency_contact_email = agency_row.data[0].get("contact_email")
-            agency_name = agency_row.data[0].get("name") or "Agence"
-            print(">>> agency_contact_email:", agency_contact_email)
-
-            if RESEND_API_KEY and agency_contact_email:
-                print(">>> Envoi email via Resend...")
-                try:
-                    email = resend.Emails.send(
-                        {
-                            "from": "LeadFlow <onboarding@resend.dev>",
-                            "to": [agency_contact_email],
-                            "subject": f"Nouveau lead : {payload.name or 'Nouveau contact'}",
-                            "html": f"""
-                              <h3>Nouveau lead reçu</h3>
-                              <p><strong>Agence :</strong> {agency_name}</p>
-                              <p><strong>Nom :</strong> {payload.name or ""}</p>
-                              <p><strong>Email :</strong> {payload.email or ""}</p>
-                              <p><strong>Téléphone :</strong> {payload.phone or ""}</p>
-                              <p><strong>Source :</strong> {payload.source or ""}</p>
-                              <p><strong>Message :</strong> {payload.message}</p>
-                              <p><strong>Score IA :</strong> {score}</p>
-                            """,
-                        }
-                    )
-                    print(">>> Resend OK:", email)
-                except Exception as e:
-                    print(">>> Resend ERROR:", repr(e))
-            else:
-                print(">>> Pas d'envoi : RESEND_API_KEY ou contact_email manquant")
-        else:
-            print(">>> Aucune agence trouvée pour id:", payload.agency_id)
-    except Exception as e:
-        print(">>> Erreur récupération agence / envoi email:", repr(e))
-
-    return {"status": "ok", "lead_id": lead_id, "score": score}
 
 
 @app.get(

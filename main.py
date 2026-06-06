@@ -12,8 +12,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
 from supabase import create_client, Client
 
-from datetime import datetime, timedelta, time, timezone
-import zoneinfo  # Python 3.9+
+from datetime import datetime, timedelta, timezone
+from datetime import time as dt_time
+import time
 
 from fastapi.responses import HTMLResponse as FastAPIHTMLResponse
 
@@ -91,10 +92,10 @@ def generate_time_slots(
     slots: list[datetime] = []
     for i in range(days_ahead):
         target_day = now.date() + timedelta(days=i + 1)  # à partir de demain
-        slot_time = datetime.combine(target_day, time(hour=11, minute=0), tz)
+        slot_time = datetime.combine(target_day, dt_time(hour=11, minute=0), tz)
         # Si on est déjà au-dessus, décale à 15h
         if slot_time <= now:
-            slot_time = datetime.combine(target_day, time(hour=15, minute=0), tz)
+            slot_time = datetime.combine(target_day, dt_time(hour=15, minute=0), tz)
         slots.append(slot_time)
 
     return slots

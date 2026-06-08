@@ -707,94 +707,211 @@
           <span id="error-msg">Une erreur est survenue. Vérifiez vos informations et réessayez.</span>
         </div>
 
-        <form id="leadForm" novalidate>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="name">Nom complet<span class="req">*</span></label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                placeholder="Ex. : Marie Martin"
-                required
-                autocomplete="name"
-              />
-            </div>
+       <!-- FORMULAIRE 2 ÉTAPES -->
+<form id="leadForm" novalidate>
 
-            <div class="form-group">
-              <label for="email">Email<span class="req">*</span></label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                placeholder="marie@exemple.com"
-                required
-                autocomplete="email"
-              />
-            </div>
+  <!-- ── Étape 1 : infos prospect ────────────────────────────── -->
+  <div id="step1">
+    <div class="form-group">
+      <label for="name">Nom complet *</label>
+      <input type="text" id="name" name="name" placeholder="Jean Dupont" required />
+    </div>
+    <div class="form-group">
+      <label for="email">Email *</label>
+      <input type="email" id="email" name="email" placeholder="jean@exemple.com" required />
+    </div>
+    <div class="form-group">
+      <label for="phone">Téléphone</label>
+      <input type="tel" id="phone" name="phone" placeholder="06 00 00 00 00" />
+    </div>
+    <div class="form-group">
+      <label for="message">Votre projet</label>
+      <textarea id="message" name="message" rows="3"
+        placeholder="Décrivez brièvement ce que vous recherchez…"></textarea>
+    </div>
+    <button type="button" id="btnStep1" class="btn-primary">
+      Choisir un créneau →
+    </button>
+  </div>
 
-            <div class="form-group">
-              <label for="phone">Téléphone<span class="req">*</span></label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                placeholder="06 12 34 56 78"
-                required
-                autocomplete="tel"
-              />
-            </div>
+  <!-- ── Étape 2 : calendrier ─────────────────────────────────── -->
+  <div id="step2" style="display:none;">
+    <button type="button" id="btnBack"
+      style="background:none;border:none;color:#9ca3af;cursor:pointer;margin-bottom:16px;font-size:14px;">
+      ← Retour
+    </button>
+    <h3 style="margin:0 0 16px;font-size:16px;">Choisissez un créneau disponible</h3>
+    <div id="slotsContainer">
+      <p style="color:#9ca3af;">Chargement des disponibilités…</p>
+    </div>
+    <div id="selectedSlotInfo" style="display:none;margin-top:16px;padding:12px;
+      background:rgba(255,255,255,0.05);border-radius:10px;font-size:14px;">
+      Créneau sélectionné : <strong id="selectedSlotLabel"></strong>
+    </div>
+    <button type="submit" id="btnConfirm" class="btn-primary"
+      style="display:none;margin-top:16px;">
+      Confirmer le rendez-vous ✅
+    </button>
+  </div>
 
-            <div class="form-group">
-              <label for="source">Source<span class="req">*</span></label>
-              <select id="source" name="source" required>
-                <option value="">Choisir une source…</option>
-                <option value="Site_web">Site web</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Instagram">Instagram</option>
-                <option value="Recommandation">Recommandation</option>
-                <option value="Google">Google</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
+  <!-- Message de résultat -->
+  <div id="formResult" style="display:none;margin-top:16px;padding:16px;
+    border-radius:10px;text-align:center;"></div>
 
-            <div class="form-group score-group">
-              <span class="score-label">Score de qualification</span>
-              <div class="score-options">
-                <div class="score-option">
-                  <input type="radio" name="score" id="score-a" value="A" />
-                  <label for="score-a" title="Très chaud">A</label>
-                </div>
-                <div class="score-option">
-                  <input type="radio" name="score" id="score-b" value="B" checked />
-                  <label for="score-b" title="Chaud">B</label>
-                </div>
-                <div class="score-option">
-                  <input type="radio" name="score" id="score-c" value="C" />
-                  <label for="score-c" title="Tiède">C</label>
-                </div>
-                <div class="score-option">
-                  <input type="radio" name="score" id="score-d" value="D" />
-                  <label for="score-d" title="Froid">D</label>
-                </div>
-              </div>
-            </div>
+</form>
 
-            <div class="form-group full">
-              <label for="message">Message / Projet<span class="req">*</span></label>
-              <textarea
-                id="message"
-                name="message"
-                placeholder="Décrivez brièvement le projet ou la demande du prospect…"
-                required
-              ></textarea>
-            </div>
-          </div>
+<script>
+  const AGENCY_ID = new URLSearchParams(window.location.search).get("agency") || "";
+  const API_BASE  = "https://lead-ingest-api-production.up.railway.app";
 
-          <button type="submit" class="btn-submit" id="submitBtn">
-            <div class="spinner" id="spinner" aria-hidden="true"></div>
-            <span id="btnText">Enregistrer le lead</span>
-          </button>
+  // ── Éléments ──────────────────────────────────────────────────
+  const step1          = document.getElementById("step1");
+  const step2          = document.getElementById("step2");
+  const btnStep1       = document.getElementById("btnStep1");
+  const btnBack        = document.getElementById("btnBack");
+  const btnConfirm     = document.getElementById("btnConfirm");
+  const slotsContainer = document.getElementById("slotsContainer");
+  const selectedInfo   = document.getElementById("selectedSlotInfo");
+  const selectedLabel  = document.getElementById("selectedSlotLabel");
+  const formResult     = document.getElementById("formResult");
+
+  let selectedSlotId   = null;
+
+  // ── Étape 1 → Étape 2 ─────────────────────────────────────────
+  btnStep1.addEventListener("click", () => {
+    const name  = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    if (!name || !email) {
+      alert("Merci de renseigner votre nom et email.");
+      return;
+    }
+    step1.style.display = "none";
+    step2.style.display = "block";
+    loadSlots();
+  });
+
+  btnBack.addEventListener("click", () => {
+    step2.style.display = "none";
+    step1.style.display = "block";
+  });
+
+  // ── Charger les créneaux via l'API ────────────────────────────
+  async function loadSlots() {
+    slotsContainer.innerHTML = "<p style='color:#9ca3af;'>Chargement…</p>";
+    selectedSlotId = null;
+    selectedInfo.style.display = "none";
+    btnConfirm.style.display = "none";
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/availability?agency_id=${AGENCY_ID}`);
+      const data = await res.json();
+      const slots = data.slots || [];
+
+      if (slots.length === 0) {
+        slotsContainer.innerHTML = "<p style='color:#9ca3af;'>Aucun créneau disponible pour le moment.</p>";
+        return;
+      }
+
+      // Grouper par date
+      const grouped = {};
+      slots.forEach(s => {
+        const dt    = new Date(s.start_at);
+        const dateK = dt.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
+        if (!grouped[dateK]) grouped[dateK] = [];
+        grouped[dateK].push(s);
+      });
+
+      let html = "";
+      for (const [date, daySlots] of Object.entries(grouped)) {
+        html += `<div style="margin-bottom:16px;">
+          <p style="font-size:13px;font-weight:600;text-transform:uppercase;
+            letter-spacing:.08em;color:#9ca3af;margin:0 0 8px;">${date}</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+        daySlots.forEach(s => {
+          const dt   = new Date(s.start_at);
+          const time = dt.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+          html += `<button type="button" class="slot-btn"
+            data-id="${s.id}" data-label="${date} à ${time}"
+            style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);
+              background:rgba(255,255,255,0.04);color:#f5f3ee;cursor:pointer;font-size:14px;
+              transition:all 0.2s;">
+            ${time}
+          </button>`;
+        });
+        html += `</div></div>`;
+      }
+      slotsContainer.innerHTML = html;
+
+      // Sélection d'un créneau
+      slotsContainer.querySelectorAll(".slot-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          slotsContainer.querySelectorAll(".slot-btn").forEach(b => {
+            b.style.background = "rgba(255,255,255,0.04)";
+            b.style.borderColor = "rgba(255,255,255,0.15)";
+          });
+          btn.style.background   = "rgba(29,78,216,0.25)";
+          btn.style.borderColor  = "#1d4ed8";
+          selectedSlotId         = btn.dataset.id;
+          selectedLabel.textContent = btn.dataset.label;
+          selectedInfo.style.display = "block";
+          btnConfirm.style.display   = "block";
+        });
+      });
+
+    } catch (err) {
+      slotsContainer.innerHTML = `<p style="color:#ef4444;">Erreur de chargement : ${err.message}</p>`;
+    }
+  }
+
+  // ── Soumission finale ─────────────────────────────────────────
+  document.getElementById("leadForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!selectedSlotId) { alert("Veuillez sélectionner un créneau."); return; }
+
+    btnConfirm.disabled = true;
+    btnConfirm.textContent = "Confirmation en cours…";
+
+    const body = {
+      agency_id:        AGENCY_ID,
+      slot_id:          selectedSlotId,
+      prospect_name:    document.getElementById("name").value.trim(),
+      prospect_email:   document.getElementById("email").value.trim(),
+      prospect_phone:   document.getElementById("phone").value.trim(),
+      prospect_message: document.getElementById("message").value.trim(),
+    };
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/book-appointment`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        step2.style.display = "none";
+        formResult.style.display   = "block";
+        formResult.style.background = "rgba(34,197,94,0.1)";
+        formResult.style.border     = "1px solid rgba(34,197,94,0.3)";
+        formResult.innerHTML = `
+          <div style="font-size:32px;margin-bottom:8px;">✅</div>
+          <strong>Rendez-vous confirmé !</strong><br>
+          <span style="font-size:14px;color:#9ca3af;">
+            Un email de confirmation vous a été envoyé.
+          </span>`;
+      } else {
+        throw new Error(data.detail || "Erreur inconnue");
+      }
+    } catch (err) {
+      formResult.style.display    = "block";
+      formResult.style.background = "rgba(239,68,68,0.1)";
+      formResult.style.border     = "1px solid rgba(239,68,68,0.3)";
+      formResult.innerHTML = `<strong>Erreur :</strong> ${err.message}`;
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = "Confirmer le rendez-vous ✅";
+    }
+  });
+</script>
         </form>
       </section>
     </div>

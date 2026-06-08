@@ -763,7 +763,7 @@ def book_appointment(payload: BookAppointmentPayload):
                 "phone": payload.prospect_phone,
                 "message": payload.prospect_message or "Réservation via calendrier",
                 "source": "calendrier",
-                "score": "N/A",
+                
             })
             .execute()
         )

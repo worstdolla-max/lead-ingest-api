@@ -697,3 +697,154 @@ def get_logs(limit: int = 100):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lecture logs: {e}")
     return resp.data
+
+# ─── Route : créneaux disponibles d'une agence ───────────────────────────────
+@app.get("/api/availability")
+def get_availability(agency_id: str):
+    """Retourne les créneaux non encore réservés d'une agence."""
+    db = get_supabase()
+    try:
+        resp = (
+            db.table("agency_availability")
+            .select("id, start_at, duration_minutes")
+            .eq("agency_id", agency_id)
+            .eq("is_booked", False)
+            .gte("start_at", datetime.now(timezone.utc).isoformat())
+            .order("start_at")
+            .execute()
+        )
+        return {"slots": resp.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── Route : réservation d'un créneau par le prospect ────────────────────────
+class BookAppointmentPayload(BaseModel):
+    agency_id: str
+    slot_id: str          # UUID du créneau dans agency_availability
+    prospect_name: str
+    prospect_email: str
+    prospect_phone: str = ""
+    prospect_message: str = ""
+
+
+@app.post("/api/book-appointment")
+def book_appointment(payload: BookAppointmentPayload):
+    db = get_supabase()
+
+    # 1) Récupérer le créneau et vérifier qu'il est encore libre
+    try:
+        slot_resp = (
+            db.table("agency_availability")
+            .select("id, start_at, is_booked, agency_id")
+            .eq("id", payload.slot_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lecture créneau : {e}")
+
+    if not slot_resp.data:
+        raise HTTPException(status_code=404, detail="Créneau introuvable.")
+
+    slot = slot_resp.data[0]
+
+    if slot["is_booked"]:
+        raise HTTPException(status_code=409, detail="Ce créneau est déjà réservé.")
+
+    # 2) Créer un lead minimal
+    try:
+        lead_resp = (
+            db.table("leads")
+            .insert({
+                "agency_id": payload.agency_id,
+                "name": payload.prospect_name,
+                "email": payload.prospect_email,
+                "phone": payload.prospect_phone,
+                "message": payload.prospect_message or "Réservation via calendrier",
+                "source": "calendrier",
+                "score": "N/A",
+            })
+            .execute()
+        )
+        lead_id = lead_resp.data[0]["id"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur création lead : {e}")
+
+    # 3) Créer le rendez-vous dans appointments
+    try:
+        db.table("appointments").insert({
+            "lead_id": lead_id,
+            "agency_id": payload.agency_id,
+            "prospect_name": payload.prospect_name,
+            "prospect_email": payload.prospect_email,
+            "prospect_phone": payload.prospect_phone,
+            "status": "confirmed",
+            "start_at": slot["start_at"],
+        }).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur création RDV : {e}")
+
+    # 4) Marquer le créneau comme réservé
+    try:
+        db.table("agency_availability").update({"is_booked": True}).eq("id", payload.slot_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur mise à jour créneau : {e}")
+
+    # 5) Email à l'agence
+    try:
+        agency_resp = (
+            db.table("agencies")
+            .select("contact_email, name")
+            .eq("id", payload.agency_id)
+            .limit(1)
+            .execute()
+        )
+        if agency_resp.data and RESEND_API_KEY:
+            agency_email = agency_resp.data[0].get("contact_email")
+            agency_name = agency_resp.data[0].get("name") or "Agence"
+            dt_slot = datetime.fromisoformat(slot["start_at"])
+            import zoneinfo
+            human_date = dt_slot.astimezone(zoneinfo.ZoneInfo("Europe/Paris")).strftime("%A %d %B %Y à %Hh%M")
+            resend.Emails.send({
+                "from": "LeadFlow <onboarding@resend.dev>",
+                "to": [agency_email],
+                "subject": f"Nouveau RDV : {payload.prospect_name} — {human_date}",
+                "html": f"""
+                <div style="font-family:system-ui,sans-serif;max-width:600px;padding:24px;">
+                  <h3>Rendez-vous confirmé via LeadFlow</h3>
+                  <p><strong>Prospect :</strong> {payload.prospect_name}</p>
+                  <p><strong>Email :</strong> {payload.prospect_email}</p>
+                  <p><strong>Téléphone :</strong> {payload.prospect_phone or 'Non renseigné'}</p>
+                  <p><strong>Message :</strong> {payload.prospect_message or '—'}</p>
+                  <p><strong>Date du RDV :</strong> {human_date}</p>
+                </div>
+                """,
+            })
+    except Exception as e:
+        print(">>> Email agence ERROR:", repr(e))
+
+    # 6) Email de confirmation au prospect
+    try:
+        if RESEND_API_KEY and payload.prospect_email:
+            dt_slot = datetime.fromisoformat(slot["start_at"])
+            import zoneinfo
+            human_date = dt_slot.astimezone(zoneinfo.ZoneInfo("Europe/Paris")).strftime("%A %d %B %Y à %Hh%M")
+            resend.Emails.send({
+                "from": "LeadFlow <onboarding@resend.dev>",
+                "to": [payload.prospect_email],
+                "subject": f"Votre rendez-vous est confirmé — {human_date}",
+                "html": f"""
+                <div style="font-family:system-ui,sans-serif;max-width:600px;padding:24px;">
+                  <h3>Votre rendez-vous est confirmé ✅</h3>
+                  <p>Bonjour {payload.prospect_name},</p>
+                  <p>Votre rendez-vous avec notre agence est bien enregistré pour :</p>
+                  <p style="font-size:18px;font-weight:bold;">{human_date}</p>
+                  <p>À très bientôt.</p>
+                </div>
+                """,
+            })
+    except Exception as e:
+        print(">>> Email prospect ERROR:", repr(e))
+
+    return {"success": True, "message": "Rendez-vous confirmé."}

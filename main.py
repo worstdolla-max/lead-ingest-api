@@ -18,6 +18,8 @@ import time
 
 from fastapi.responses import HTMLResponse as FastAPIHTMLResponse
 
+import urllib.parse
+
 # ---------- App FastAPI ----------
 
 app = FastAPI(title="Immo AI Backend")
@@ -286,12 +288,9 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/confirm-appointment", response_class=FastAPIHTMLResponse)
+@app.get("/confirm-appointment")
 def confirm_appointment(lead_id: str, slot_iso: str):
-    """
-    Quand l'agence clique sur un lien dans l'email, on arrive ici.
-    On enregistre le rendez-vous dans la table appointments et on affiche une confirmation.
-    """
+    import zoneinfo
     db = get_supabase()
 
     # 1) Récupérer le lead
@@ -304,102 +303,103 @@ def confirm_appointment(lead_id: str, slot_iso: str):
             .execute()
         )
     except Exception as e:
-        return FastAPIHTMLResponse(
+        return HTMLResponse(
             content=f"<h2>Erreur</h2><p>Impossible de récupérer le lead: {e}</p>",
             status_code=500,
         )
 
     if not lead_resp.data:
-        return FastAPIHTMLResponse(
-            content="<h2>Lead introuvable</h2><p>Le lien de confirmation est invalide ou expiré.</p>",
+        return HTMLResponse(
+            content="<h2>Lead introuvable</h2><p>Le lien est invalide ou expiré.</p>",
             status_code=404,
         )
 
     lead = lead_resp.data[0]
 
-    # 2) Parser le slot
+    # 2) Parser le slot — on gère le + mal encodé en espace
     try:
-        dt = datetime.fromisoformat(slot_iso)
-    except Exception:
-        return FastAPIHTMLResponse(
-            content="<h2>Créneau invalide</h2><p>Le créneau fourni est invalide.</p>",
+        slot_iso_clean = slot_iso.replace(" ", "+")
+        dt_slot = datetime.fromisoformat(slot_iso_clean)
+    except Exception as ex:
+        return HTMLResponse(
+            content=f"<h2>Créneau invalide</h2><p>Valeur reçue : {slot_iso!r} — Erreur : {ex}</p>",
             status_code=400,
         )
 
     # 3) Insérer le rendez-vous
     try:
-        appt_resp = (
-            db.table("appointments")
-            .insert(
-                {
-                    "lead_id": lead["id"],
-                    "agency_id": lead["agency_id"],
-                    "prospect_name": lead.get("name"),
-                    "prospect_email": lead.get("email"),
-                    "prospect_phone": lead.get("phone"),
-                    "status": "confirmed",
-                    "start_at": dt.isoformat(),
-                }
-            )
-            .execute()
-        )
+        db.table("appointments").insert(
+            {
+                "lead_id": lead["id"],
+                "agency_id": lead["agency_id"],
+                "prospect_name": lead.get("name"),
+                "prospect_email": lead.get("email"),
+                "prospect_phone": lead.get("phone"),
+                "status": "confirmed",
+                "start_at": dt_slot.isoformat(),
+            }
+        ).execute()
     except Exception as e:
-        return FastAPIHTMLResponse(
-            content=f"<h2>Erreur</h2><p>Impossible d'enregistrer le rendez-vous: {e}</p>",
+        return HTMLResponse(
+            content=f"<h2>Erreur</h2><p>Impossible d'enregistrer le rendez-vous : {e}</p>",
             status_code=500,
         )
 
-    # 4) Afficher une page simple
-    human_date = dt.astimezone(zoneinfo.ZoneInfo("Europe/Paris")).strftime(
-        "%A %d %B %Y à %Hh%M"
-    )
+    # 4) Page de confirmation
+    tz_paris = zoneinfo.ZoneInfo("Europe/Paris")
+    human_date = dt_slot.astimezone(tz_paris).strftime("%A %d %B %Y à %Hh%M")
+    prospect_name = lead.get("name") or "le prospect"
+
     html = f"""
     <html>
       <head>
         <meta charset="utf-8"/>
-        <title>Rendez-vous confirmé</title>
+        <title>Rendez-vous confirmé — LeadFlow</title>
         <style>
           body {{
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background: #05060a;
             color: #f5f3ee;
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            margin: 0;
           }}
           .card {{
             background: #11131b;
-            padding: 24px 28px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.12);
-            max-width: 420px;
+            padding: 32px 36px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
           }}
-          h2 {{
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 20px;
+          .icon {{ font-size: 48px; margin-bottom: 16px; }}
+          h2 {{ margin: 0 0 12px; font-size: 22px; }}
+          .date {{
+            background: rgba(255,255,255,0.06);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 600;
+            margin: 16px 0;
           }}
-          p {{
-            font-size: 14px;
-            line-height: 1.6;
-          }}
+          p {{ font-size: 14px; color: #9ca3af; line-height: 1.6; }}
         </style>
       </head>
       <body>
         <div class="card">
+          <div class="icon">✅</div>
           <h2>Rendez-vous confirmé</h2>
-          <p>Le rendez-vous avec <strong>{lead.get("name") or "le prospect"}</strong> est confirmé pour :</p>
-          <p><strong>{human_date}</strong></p>
-          <p style="margin-top:16px;font-size:12px;color:#9ca3af;">
-            Le rendez-vous a été enregistré dans LeadFlow. Vous pouvez à présent l'ajouter à votre agenda.
-          </p>
+          <p>avec <strong style="color:#f5f3ee;">{prospect_name}</strong></p>
+          <div class="date">{human_date}</div>
+          <p>Ce rendez-vous a été enregistré dans votre espace LeadFlow.</p>
         </div>
       </body>
     </html>
     """
-    return FastAPIHTMLResponse(content=html, status_code=200)
-
+    return HTMLResponse(content=html, status_code=200)
 
 @app.post("/api/ingest-lead", dependencies=[Depends(verify_api_key)])
 def ingest_lead(payload: LeadIngest):

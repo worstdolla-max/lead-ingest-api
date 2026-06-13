@@ -4,621 +4,286 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LeadFlow — Formulaire prospect privé</title>
-
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
-    rel="stylesheet"
-  >
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
-    /* RESET & BASE ---------------------------------------------------------- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      /* Palette luxe sombre */
       --bg: #05060a;
       --bg-elevated: #0e1016;
       --surface: #11131b;
       --surface-soft: #151824;
-      --border-subtle: rgba(255, 255, 255, 0.06);
-      --border-strong: rgba(255, 255, 255, 0.14);
-
+      --border-subtle: rgba(255,255,255,0.06);
+      --border-strong: rgba(255,255,255,0.14);
       --text: #f5f3ee;
       --text-muted: #9b9faf;
       --text-soft: #6b6f80;
-
-      --accent: #d1b47a;           /* champagne / or désaturé */
-      --accent-soft: rgba(209, 180, 122, 0.18);
+      --accent: #d1b47a;
+      --accent-soft: rgba(209,180,122,0.18);
       --accent-hover: #e0c48d;
-
       --danger: #f97373;
-      --danger-soft: rgba(249, 115, 115, 0.18);
+      --danger-soft: rgba(249,115,115,0.18);
       --success: #4ade80;
-      --success-soft: rgba(74, 222, 128, 0.18);
-
+      --success-soft: rgba(74,222,128,0.18);
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 16px;
       --radius-pill: 999px;
-
-      --shadow-soft: 0 18px 60px rgba(0, 0, 0, 0.6);
-
-      --space-1: 0.25rem;
-      --space-2: 0.5rem;
-      --space-3: 0.75rem;
-      --space-4: 1rem;
-      --space-5: 1.25rem;
-      --space-6: 1.5rem;
-      --space-8: 2rem;
-      --space-10: 2.5rem;
-      --space-12: 3rem;
-
-      --transition-fast: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-      --transition-med: 260ms cubic-bezier(0.16, 1, 0.3, 1);
+      --shadow-soft: 0 18px 60px rgba(0,0,0,0.6);
+      --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem;
+      --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem;
+      --transition-fast: 180ms cubic-bezier(0.16,1,0.3,1);
+      --transition-med: 260ms cubic-bezier(0.16,1,0.3,1);
     }
-
-    html {
-      -webkit-font-smoothing: antialiased;
-      scroll-behavior: smooth;
-    }
-
+    html { -webkit-font-smoothing:antialiased; scroll-behavior:smooth; }
     body {
-      min-height: 100vh;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height:100vh;
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
       background:
-        radial-gradient(circle at 0% 0%, rgba(209,180,122,0.12), transparent 55%),
-        radial-gradient(circle at 100% 100%, rgba(94,234,212,0.08), transparent 55%),
+        radial-gradient(circle at 0% 0%,rgba(209,180,122,0.12),transparent 55%),
+        radial-gradient(circle at 100% 100%,rgba(94,234,212,0.08),transparent 55%),
         var(--bg);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
+      color:var(--text);
+      display:flex; flex-direction:column;
     }
+    a { color:inherit; text-decoration:none; }
 
-    a { color: inherit; text-decoration: none; }
+    .shell { width:100%; max-width:960px; margin:0 auto; padding-inline:var(--space-4); }
 
-    /* LAYOUT --------------------------------------------------------------- */
-    .shell {
-      width: 100%;
-      max-width: 960px;
-      margin: 0 auto;
-      padding-inline: var(--space-4);
-    }
-
-    /* NAV ------------------------------------------------------------------ */
     nav {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      backdrop-filter: blur(18px);
-      background: linear-gradient(to bottom, rgba(5,6,10,0.92), rgba(5,6,10,0.75));
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+      position:sticky; top:0; z-index:10;
+      backdrop-filter:blur(18px);
+      background:linear-gradient(to bottom,rgba(5,6,10,0.92),rgba(5,6,10,0.75));
+      border-bottom:1px solid rgba(255,255,255,0.04);
     }
-
-    .nav-inner {
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
+    .nav-inner { height:64px; display:flex; align-items:center; justify-content:space-between; }
     .logo {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      font-size: 0.82rem;
+      display:flex; align-items:center; gap:var(--space-2);
+      font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-size:0.82rem;
     }
-
     .logo-mark {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: radial-gradient(circle at 0% 0%, #fef6e7, #b18b4b 45%, #5b4730 100%);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #05060a;
-      font-size: 0.8rem;
-      font-weight: 700;
+      width:28px; height:28px; border-radius:8px;
+      background:radial-gradient(circle at 0% 0%,#fef6e7,#b18b4b 45%,#5b4730 100%);
+      display:inline-flex; align-items:center; justify-content:center;
+      color:#05060a; font-size:0.8rem; font-weight:700;
     }
-
     .agency-name {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--text-soft);
-      white-space: nowrap;
-      max-width: 260px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: right;
+      font-size:0.8rem; text-transform:uppercase; letter-spacing:0.16em;
+      color:var(--text-soft); white-space:nowrap;
+      max-width:260px; overflow:hidden; text-overflow:ellipsis; text-align:right;
     }
 
-    /* HERO ----------------------------------------------------------------- */
-    .hero {
-      padding-block: var(--space-10);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-
+    .hero { padding-block:var(--space-10); border-bottom:1px solid rgba(255,255,255,0.05); }
     .hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr);
-      gap: var(--space-8);
-      align-items: center;
+      display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr);
+      gap:var(--space-8); align-items:center;
     }
-
     .hero-kicker {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--text-soft);
-      margin-bottom: var(--space-3);
+      font-size:0.75rem; text-transform:uppercase; letter-spacing:0.18em;
+      color:var(--text-soft); margin-bottom:var(--space-3);
     }
-
     .hero-title {
-      font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-      font-size: clamp(2.3rem, 3.4vw, 3.4rem);
-      line-height: 1.1;
-      margin-bottom: var(--space-3);
+      font-family:'Instrument Serif',Georgia,serif;
+      font-size:clamp(2.3rem,3.4vw,3.4rem); line-height:1.1; margin-bottom:var(--space-3);
     }
-
-    .hero-title em {
-      font-style: italic;
-      opacity: 0.9;
-    }
-
+    .hero-title em { font-style:italic; opacity:0.9; }
     .hero-subtitle {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      max-width: 36rem;
-      line-height: 1.7;
-      margin-bottom: var(--space-6);
+      font-size:0.95rem; color:var(--text-muted);
+      max-width:36rem; line-height:1.7; margin-bottom:var(--space-6);
     }
-
-    .hero-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-2);
-      font-size: 0.8rem;
-      color: var(--text-soft);
-    }
-
+    .hero-meta { display:flex; flex-wrap:wrap; gap:var(--space-2); font-size:0.8rem; color:var(--text-soft); }
     .pill {
-      border-radius: var(--radius-pill);
-      padding: 0.4rem 0.9rem;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(17,19,27,0.85);
-      backdrop-filter: blur(8px);
+      border-radius:var(--radius-pill); padding:0.4rem 0.9rem;
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(17,19,27,0.85); backdrop-filter:blur(8px);
     }
-
     .hero-card {
-      background: radial-gradient(circle at 0% 0%, rgba(209,180,122,0.06), transparent 60%),
-                  var(--surface);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-soft);
-      padding: var(--space-6);
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
+      background:radial-gradient(circle at 0% 0%,rgba(209,180,122,0.06),transparent 60%),var(--surface);
+      border-radius:var(--radius-lg); border:1px solid var(--border-subtle);
+      box-shadow:var(--shadow-soft); padding:var(--space-6);
+      display:flex; flex-direction:column; gap:var(--space-4);
     }
-
-    .hero-card-title {
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--text-soft);
-    }
-
-    .hero-card-metric {
-      display: flex;
-      align-items: baseline;
-      gap: 0.35rem;
-    }
-
-    .hero-card-metric span.value {
-      font-size: 2rem;
-      font-weight: 600;
-    }
-
-    .hero-card-metric span.label {
-      font-size: 0.8rem;
-      color: var(--text-soft);
-    }
-
-    .hero-card-note {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      max-width: 26ch;
-    }
-
+    .hero-card-title { font-size:0.9rem; text-transform:uppercase; letter-spacing:0.18em; color:var(--text-soft); }
+    .hero-card-metric { display:flex; align-items:baseline; gap:0.35rem; }
+    .hero-card-metric span.value { font-size:2rem; font-weight:600; }
+    .hero-card-metric span.label { font-size:0.8rem; color:var(--text-soft); }
+    .hero-card-note { font-size:0.8rem; color:var(--text-muted); max-width:26ch; }
     .hero-card-badge {
-      align-self: flex-start;
-      border-radius: var(--radius-pill);
-      padding: 0.35rem 0.85rem;
-      font-size: 0.78rem;
-      border: 1px solid var(--accent-soft);
-      background: rgba(12, 16, 24, 0.9);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      color: var(--accent);
+      align-self:flex-start; border-radius:var(--radius-pill); padding:0.35rem 0.85rem;
+      font-size:0.78rem; border:1px solid var(--accent-soft);
+      background:rgba(12,16,24,0.9); display:inline-flex; align-items:center;
+      gap:0.4rem; color:var(--accent);
     }
-
     .hero-card-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(209,180,122,0.25);
+      width:8px; height:8px; border-radius:50%; background:var(--accent);
+      box-shadow:0 0 0 6px rgba(209,180,122,0.25);
     }
 
-    /* MAIN / CARD ---------------------------------------------------------- */
-    main {
-      flex: 1;
-      padding-block: var(--space-10);
-    }
-
-    .card-shell {
-      max-width: 720px;
-      margin: 0 auto;
-    }
-
+    main { flex:1; padding-block:var(--space-10); }
+    .card-shell { max-width:720px; margin:0 auto; }
     .card {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-subtle);
-      box-shadow: var(--shadow-soft);
-      padding: var(--space-6);
+      background:var(--surface); border-radius:var(--radius-lg);
+      border:1px solid var(--border-subtle); box-shadow:var(--shadow-soft);
+      padding:var(--space-6);
     }
-
     .card-header {
-      margin-bottom: var(--space-5);
-      padding-bottom: var(--space-4);
-      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom:var(--space-5); padding-bottom:var(--space-4);
+      border-bottom:1px solid var(--border-subtle);
     }
-
     .card-eyebrow {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--text-soft);
-      margin-bottom: var(--space-2);
+      font-size:0.75rem; text-transform:uppercase; letter-spacing:0.18em;
+      color:var(--text-soft); margin-bottom:var(--space-2);
     }
+    .card-header h2 { font-size:1.1rem; font-weight:600; margin-bottom:var(--space-2); }
+    .card-header p { font-size:0.85rem; color:var(--text-muted); max-width:42ch; }
 
-    .card-header h2 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: var(--space-2);
-    }
-
-    .card-header p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      max-width: 42ch;
-    }
-
-    /* ALERTS --------------------------------------------------------------- */
+    /* ALERT */
     .alert {
-      display: none;
-      padding: 0.85rem 1rem;
-      border-radius: var(--radius-md);
-      font-size: 0.85rem;
-      font-weight: 500;
-      margin-bottom: var(--space-4);
-      align-items: center;
-      gap: var(--space-2);
+      display:none; padding:0.85rem 1rem; border-radius:var(--radius-md);
+      font-size:0.85rem; font-weight:500; margin-bottom:var(--space-4);
+      align-items:center; gap:var(--space-2);
     }
-    .alert.show { display: flex; }
-
-    .alert svg {
-      flex-shrink: 0;
-      width: 18px;
-      height: 18px;
-    }
-
+    .alert.show { display:flex; }
+    .alert svg { flex-shrink:0; width:18px; height:18px; }
     .alert-success {
-      background: var(--success-soft);
-      color: var(--success);
-      border: 1px solid rgba(74, 222, 128, 0.6);
+      background:var(--success-soft); color:var(--success);
+      border:1px solid rgba(74,222,128,0.6);
     }
-
     .alert-error {
-      background: var(--danger-soft);
-      color: var(--danger);
-      border: 1px solid rgba(248, 113, 113, 0.7);
+      background:var(--danger-soft); color:var(--danger);
+      border:1px solid rgba(248,113,113,0.7);
     }
 
-    /* FORM ----------------------------------------------------------------- */
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-4);
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-1);
-    }
-
-    .form-group.full { grid-column: 1 / -1; }
-
+    /* FORM */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); }
+    .form-group { display:flex; flex-direction:column; gap:var(--space-1); }
+    .form-group.full { grid-column:1 / -1; }
     label {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-soft);
-      font-weight: 500;
+      font-size:0.78rem; text-transform:uppercase; letter-spacing:0.14em;
+      color:var(--text-soft); font-weight:500;
     }
-
-    label .req {
-      color: var(--accent);
-      margin-left: 2px;
-    }
-
+    label .req { color:var(--accent); margin-left:2px; }
     input, select, textarea {
-      width: 100%;
-      padding: 0.7rem 0.85rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      background: var(--surface-soft);
-      color: var(--text);
-      font-size: 0.92rem;
-      font-family: inherit;
-      transition:
-        border-color var(--transition-fast),
-        box-shadow var(--transition-fast),
-        background var(--transition-fast),
-        transform 80ms ease-out;
-      outline: none;
+      width:100%; padding:0.7rem 0.85rem; border-radius:var(--radius-md);
+      border:1px solid var(--border-subtle); background:var(--surface-soft);
+      color:var(--text); font-size:0.92rem; font-family:inherit;
+      transition:border-color var(--transition-fast),box-shadow var(--transition-fast),background var(--transition-fast);
+      outline:none;
+    }
+    input::placeholder, textarea::placeholder { color:rgba(155,159,175,0.7); }
+    input:focus, select:focus, textarea:focus {
+      border-color:var(--accent); background:#181b27;
+      box-shadow:0 0 0 1px var(--accent-soft);
+    }
+    textarea { resize:vertical; min-height:110px; line-height:1.5; }
+    select { cursor:pointer; }
+
+    /* DIVIDER CRÉNEAU */
+    .slots-divider {
+      margin:var(--space-6) 0 var(--space-4);
+      padding-top:var(--space-5);
+      border-top:1px solid var(--border-subtle);
+    }
+    .slots-divider-title {
+      font-size:0.85rem; font-weight:600; color:var(--text-muted);
+      margin-bottom:4px;
+    }
+    .slots-divider-sub {
+      font-size:0.78rem; color:var(--text-soft); margin-bottom:var(--space-4);
     }
 
-    input::placeholder,
-    textarea::placeholder {
-      color: rgba(155,159,175,0.7);
+    /* SLOT BUTTONS */
+    .slots-day-label {
+      font-size:0.75rem; font-weight:600; text-transform:uppercase;
+      letter-spacing:0.1em; color:var(--text-soft); margin:0 0 8px;
     }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: var(--accent);
-      background: #181b27;
-      box-shadow: 0 0 0 1px var(--accent-soft);
+    .slots-day { margin-bottom:var(--space-4); }
+    .slots-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .slot-btn {
+      padding:8px 16px; border-radius:var(--radius-md);
+      border:1px solid rgba(255,255,255,0.12);
+      background:rgba(255,255,255,0.03);
+      color:var(--text); cursor:pointer; font-size:0.85rem;
+      transition:all var(--transition-fast);
     }
-
-    textarea {
-      resize: vertical;
-      min-height: 110px;
-      line-height: 1.5;
+    .slot-btn:hover {
+      border-color:var(--accent); background:var(--accent-soft); color:var(--accent-hover);
     }
-
-    select { cursor: pointer; }
-
-    /* Score radio ---------------------------------------------------------- */
-    .score-group { grid-column: 1 / -1; }
-
-    .score-label {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-soft);
-      margin-bottom: var(--space-2);
-      display: block;
+    .slot-btn.selected {
+      border-color:var(--accent); background:var(--accent-soft);
+      color:var(--accent-hover); font-weight:600;
+      box-shadow:0 4px 16px rgba(209,180,122,0.2);
     }
-
-    .score-options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-2);
+    .slot-selected-info {
+      display:none; margin-top:var(--space-3);
+      padding:10px 14px; background:rgba(209,180,122,0.08);
+      border:1px solid rgba(209,180,122,0.25); border-radius:var(--radius-md);
+      font-size:0.85rem; color:var(--accent);
     }
+    .slot-selected-info.show { display:block; }
 
-    .score-option {
-      position: relative;
-    }
-
-    .score-option input[type="radio"] {
-      position: absolute;
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .score-option label {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 46px;
-      height: 46px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-subtle);
-      background: var(--surface-soft);
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      color: var(--text-soft);
-    }
-
-    .score-option input[type="radio"]:checked + label {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-      color: var(--accent-hover);
-      box-shadow: 0 8px 22px rgba(209,180,122,0.25);
-      transform: translateY(-1px);
-    }
-
-    .score-option label:hover {
-      border-color: rgba(209,180,122,0.7);
-    }
-
-    /* BUTTON --------------------------------------------------------------- */
+    /* SUBMIT BUTTON */
     .btn-submit {
-      width: 100%;
-      margin-top: var(--space-6);
-      padding: 0.9rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--accent);
-      background: linear-gradient(135deg, #f6e9d3 0%, #d1b47a 35%, #b28c53 100%);
-      color: #231a0f;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-2);
-      box-shadow: 0 16px 30px rgba(0,0,0,0.45);
-      transition:
-        transform 80ms ease-out,
-        box-shadow var(--transition-fast),
-        filter var(--transition-fast),
-        background var(--transition-fast);
+      width:100%; margin-top:var(--space-6); padding:0.9rem;
+      border-radius:var(--radius-md); border:1px solid var(--accent);
+      background:linear-gradient(135deg,#f6e9d3 0%,#d1b47a 35%,#b28c53 100%);
+      color:#231a0f; font-size:0.95rem; font-weight:600; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+      box-shadow:0 16px 30px rgba(0,0,0,0.45);
+      transition:transform 80ms ease-out,box-shadow var(--transition-fast),filter var(--transition-fast);
     }
-
-    .btn-submit:hover {
-      filter: brightness(1.04);
-      box-shadow: 0 26px 50px rgba(0,0,0,0.55);
-      transform: translateY(-1px);
-    }
-
-    .btn-submit:active {
-      transform: translateY(0);
-      box-shadow: 0 14px 28px rgba(0,0,0,0.5);
-    }
-
-    .btn-submit:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      box-shadow: none;
-      filter: grayscale(0.2);
-    }
-
+    .btn-submit:hover { filter:brightness(1.04); box-shadow:0 26px 50px rgba(0,0,0,0.55); transform:translateY(-1px); }
+    .btn-submit:active { transform:translateY(0); box-shadow:0 14px 28px rgba(0,0,0,0.5); }
+    .btn-submit:disabled { opacity:0.5; cursor:not-allowed; box-shadow:none; filter:grayscale(0.2); }
     .spinner {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      border: 2px solid rgba(0,0,0,0.25);
-      border-top-color: #000;
-      animation: spin 0.7s linear infinite;
-      display: none;
+      width:18px; height:18px; border-radius:50%;
+      border:2px solid rgba(0,0,0,0.25); border-top-color:#000;
+      animation:spin 0.7s linear infinite; display:none;
     }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* ERROR STATE CARD ----------------------------------------------------- */
+    /* ERROR STATE */
     #errorState {
-      text-align: center;
-      padding: var(--space-6) var(--space-5);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-strong);
-      background: radial-gradient(circle at 0% 0%, rgba(248,113,113,0.12), transparent 55%),
-                  var(--surface);
-      box-shadow: var(--shadow-soft);
+      text-align:center; padding:var(--space-6) var(--space-5);
+      border-radius:var(--radius-lg); border:1px solid var(--border-strong);
+      background:radial-gradient(circle at 0% 0%,rgba(248,113,113,0.12),transparent 55%),var(--surface);
+      box-shadow:var(--shadow-soft);
     }
+    #errorState svg { width:48px; height:48px; color:var(--danger); margin-bottom:var(--space-3); }
+    #errorState h2 { font-size:1.05rem; font-weight:600; margin-bottom:var(--space-2); }
+    #errorState p { font-size:0.85rem; color:var(--text-muted); max-width:40ch; margin-inline:auto; line-height:1.7; }
 
-    #errorState svg {
-      width: 48px;
-      height: 48px;
-      color: var(--danger);
-      margin-bottom: var(--space-3);
-    }
-
-    #errorState h2 {
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin-bottom: var(--space-2);
-    }
-
-    #errorState p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      max-width: 40ch;
-      margin-inline: auto;
-      line-height: 1.7;
-    }
-
-    /* FOOTER --------------------------------------------------------------- */
     footer {
-      border-top: 1px solid rgba(255,255,255,0.06);
-      background: #05060a;
-      padding: var(--space-4) 0;
-      font-size: 0.78rem;
-      color: var(--text-soft);
+      border-top:1px solid rgba(255,255,255,0.06); background:#05060a;
+      padding:var(--space-4) 0; font-size:0.78rem; color:var(--text-soft);
     }
+    .footer-inner { display:flex; justify-content:space-between; gap:var(--space-4); align-items:center; flex-wrap:wrap; }
+    .footer-logo { font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); }
 
-    .footer-inner {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--space-4);
-      align-items: center;
-      flex-wrap: wrap;
+    @media (max-width:768px) {
+      .hero { padding-block:var(--space-8); }
+      .hero-grid { grid-template-columns:1fr; gap:var(--space-6); }
+      .hero-card { padding:var(--space-5); }
+      main { padding-block:var(--space-8); }
+      .card { padding:var(--space-5); }
+      .form-grid { grid-template-columns:1fr; }
+      .form-group.full { grid-column:1; }
+      .nav-inner { height:60px; }
+      .agency-name { max-width:180px; font-size:0.75rem; }
     }
-
-    .footer-logo {
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-
-    /* RESPONSIVE ----------------------------------------------------------- */
-    @media (max-width: 768px) {
-      .hero {
-        padding-block: var(--space-8);
-      }
-      .hero-grid {
-        grid-template-columns: 1fr;
-        gap: var(--space-6);
-      }
-      .hero-card {
-        padding: var(--space-5);
-      }
-      main {
-        padding-block: var(--space-8);
-      }
-      .card {
-        padding: var(--space-5);
-      }
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-      .form-group.full,
-      .score-group {
-        grid-column: 1;
-      }
-      .nav-inner {
-        height: 60px;
-      }
-      .agency-name {
-        max-width: 180px;
-        font-size: 0.75rem;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .shell {
-        padding-inline: var(--space-3);
-      }
-      .hero-title {
-        font-size: clamp(1.9rem, 7vw, 2.4rem);
-      }
+    @media (max-width:480px) {
+      .shell { padding-inline:var(--space-3); }
+      .hero-title { font-size:clamp(1.9rem,7vw,2.4rem); }
     }
   </style>
 </head>
 
 <body>
-  <!-- NAV ------------------------------------------------------------------ -->
+  <!-- NAV -->
   <nav>
     <div class="shell nav-inner">
-      <a href="#" class="logo" aria-label="LeadFlow — retour au début du formulaire">
+      <a href="#" class="logo">
         <span class="logo-mark">LF</span>
         <span>LeadFlow</span>
       </a>
@@ -626,16 +291,13 @@
     </div>
   </nav>
 
-  <!-- HERO ----------------------------------------------------------------- -->
+  <!-- HERO -->
   <header class="hero">
     <div class="shell hero-grid">
       <div>
         <div class="hero-kicker">Formulaire prospect privé</div>
-        <h1 class="hero-title">
-          Capturez vos prospects,<br>
-          <em>sans friction.</em>
-        </h1>
-        <p class="hero-subtitle" id="heroSubtitle">
+        <h1 class="hero-title">Capturez vos prospects,<br><em>sans friction.</em></h1>
+        <p class="hero-subtitle">
           Chaque formulaire rempli est enregistré instantanément dans votre espace LeadFlow
           et routé vers la bonne agence. Zéro copie‑collé, aucune perte de lead.
         </p>
@@ -645,28 +307,26 @@
           <span class="pill">Pensé pour les équipes premium</span>
         </div>
       </div>
-
       <aside class="hero-card" aria-hidden="true">
         <div class="hero-card-title">Aperçu instantané</div>
         <div class="hero-card-metric">
           <span class="value">02:17</span>
           <span class="label">temps moyen avant prise en charge</span>
         </div>
-        <p class="hero-card-note">
-          Les leads qualifiés sont priorisés automatiquement et notifiés à vos équipes sans délai.
-        </p>
+        <p class="hero-card-note">Les leads qualifiés sont priorisés automatiquement et notifiés à vos équipes sans délai.</p>
         <div class="hero-card-badge">
           <span class="hero-card-dot"></span>
-          <span>Vue “Nouveaux leads” mise à jour en continu</span>
+          <span>Vue "Nouveaux leads" mise à jour en continu</span>
         </div>
       </aside>
     </div>
   </header>
 
-  <!-- MAIN ----------------------------------------------------------------- -->
+  <!-- MAIN -->
   <main>
     <div class="shell card-shell">
-      <!-- ERROR STATE : agency_id manquant ou invalide -->
+
+      <!-- ERROR STATE -->
       <section id="errorState" style="display:none;" aria-live="polite">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
@@ -674,22 +334,18 @@
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <h2>Lien invalide</h2>
-        <p>
-          Ce lien de formulaire ne contient pas d’identifiant d’agence valide.
-          Contactez votre interlocuteur LeadFlow pour obtenir une nouvelle URL.
-        </p>
+        <p>Ce lien de formulaire ne contient pas d'identifiant d'agence valide. Contactez votre interlocuteur LeadFlow pour obtenir une nouvelle URL.</p>
       </section>
 
-      <!-- FORM CARD -------------------------------------------------------- -->
-      <section class="card" id="formCard" aria-label="Formulaire de nouveau prospect">
+      <!-- FORM CARD -->
+      <section class="card" id="formCard">
         <header class="card-header">
           <div class="card-eyebrow">Lead entrant</div>
-          <h2 id="cardTitle">Nouveau prospect</h2>
-          <p id="cardSubtitle">
-            Remplissez les informations essentielles. Le lead sera immédiatement disponible dans votre tableau LeadFlow.
-          </p>
+          <h2>Nouveau prospect</h2>
+          <p>Remplissez les informations essentielles. Le lead sera immédiatement disponible dans votre tableau LeadFlow.</p>
         </header>
 
+        <!-- Alertes -->
         <div id="alert-success" class="alert alert-success" role="alert" aria-live="polite">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -697,7 +353,6 @@
           </svg>
           Lead enregistré avec succès. Vous pouvez saisir un nouveau contact.
         </div>
-
         <div id="alert-error" class="alert alert-error" role="alert" aria-live="polite">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -707,342 +362,265 @@
           <span id="error-msg">Une erreur est survenue. Vérifiez vos informations et réessayez.</span>
         </div>
 
-       <!-- FORMULAIRE 2 ÉTAPES -->
-<form id="leadForm" novalidate>
+        <!-- FORMULAIRE UNIQUE -->
+        <form id="leadForm" novalidate>
+          <div class="form-grid">
 
-  <!-- ── Étape 1 : infos prospect ────────────────────────────── -->
-  <div id="step1">
-    <div class="form-group">
-      <label for="name">Nom complet *</label>
-      <input type="text" id="name" name="name" placeholder="Jean Dupont" required />
-    </div>
-    <div class="form-group">
-      <label for="email">Email *</label>
-      <input type="email" id="email" name="email" placeholder="jean@exemple.com" required />
-    </div>
-    <div class="form-group">
-      <label for="phone">Téléphone</label>
-      <input type="tel" id="phone" name="phone" placeholder="06 00 00 00 00" />
-    </div>
-    <div class="form-group">
-      <label for="message">Votre projet</label>
-      <textarea id="message" name="message" rows="3"
-        placeholder="Décrivez brièvement ce que vous recherchez…"></textarea>
-    </div>
-    <button type="button" id="btnStep1" class="btn-primary">
-      Choisir un créneau →
-    </button>
-  </div>
+            <div class="form-group">
+              <label for="name">Nom complet <span class="req">*</span></label>
+              <input type="text" id="name" name="name" placeholder="Jean Dupont" required />
+            </div>
 
-  <!-- ── Étape 2 : calendrier ─────────────────────────────────── -->
-  <div id="step2" style="display:none;">
-    <button type="button" id="btnBack"
-      style="background:none;border:none;color:#9ca3af;cursor:pointer;margin-bottom:16px;font-size:14px;">
-      ← Retour
-    </button>
-    <h3 style="margin:0 0 16px;font-size:16px;">Choisissez un créneau disponible</h3>
-    <div id="slotsContainer">
-      <p style="color:#9ca3af;">Chargement des disponibilités…</p>
-    </div>
-    <div id="selectedSlotInfo" style="display:none;margin-top:16px;padding:12px;
-      background:rgba(255,255,255,0.05);border-radius:10px;font-size:14px;">
-      Créneau sélectionné : <strong id="selectedSlotLabel"></strong>
-    </div>
-    <button type="submit" id="btnConfirm" class="btn-primary"
-      style="display:none;margin-top:16px;">
-      Confirmer le rendez-vous ✅
-    </button>
-  </div>
+            <div class="form-group">
+              <label for="email">Email <span class="req">*</span></label>
+              <input type="email" id="email" name="email" placeholder="jean@exemple.com" required />
+            </div>
 
-  <!-- Message de résultat -->
-  <div id="formResult" style="display:none;margin-top:16px;padding:16px;
-    border-radius:10px;text-align:center;"></div>
+            <div class="form-group">
+              <label for="phone">Téléphone</label>
+              <input type="tel" id="phone" name="phone" placeholder="06 00 00 00 00" />
+            </div>
 
-</form>
+            <div class="form-group">
+              <label for="source">Source</label>
+              <select id="source" name="source">
+                <option value="">— Sélectionner —</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Google">Google</option>
+                <option value="Recommandation">Recommandation</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
 
-<script>
-  const AGENCY_ID = new URLSearchParams(window.location.search).get("agency") || "";
-  const API_BASE  = "https://lead-ingest-api-production.up.railway.app";
+            <div class="form-group full">
+              <label for="message">Votre projet</label>
+              <textarea id="message" name="message" rows="3" placeholder="Décrivez brièvement ce que vous recherchez…"></textarea>
+            </div>
 
-  // ── Éléments ──────────────────────────────────────────────────
-  const step1          = document.getElementById("step1");
-  const step2          = document.getElementById("step2");
-  const btnStep1       = document.getElementById("btnStep1");
-  const btnBack        = document.getElementById("btnBack");
-  const btnConfirm     = document.getElementById("btnConfirm");
-  const slotsContainer = document.getElementById("slotsContainer");
-  const selectedInfo   = document.getElementById("selectedSlotInfo");
-  const selectedLabel  = document.getElementById("selectedSlotLabel");
-  const formResult     = document.getElementById("formResult");
+          </div>
 
-  let selectedSlotId   = null;
+          <!-- ── SECTION CRÉNEAU (optionnelle) ── -->
+          <div class="slots-divider">
+            <div class="slots-divider-title">Choisir un créneau <span style="font-weight:400;color:var(--text-soft);">(optionnel)</span></div>
+            <div class="slots-divider-sub">Si vous souhaitez planifier un rendez-vous, sélectionnez un créneau disponible ci-dessous.</div>
+            <div id="slotsContainer">
+              <p style="font-size:0.85rem;color:var(--text-soft);">Chargement des disponibilités…</p>
+            </div>
+            <div id="slotSelectedInfo" class="slot-selected-info">
+              ✓ Créneau sélectionné : <strong id="slotSelectedLabel"></strong>
+              <button type="button" id="btnClearSlot"
+                style="margin-left:12px;background:none;border:none;color:var(--text-soft);cursor:pointer;font-size:0.8rem;text-decoration:underline;">
+                Annuler
+              </button>
+            </div>
+          </div>
+          <!-- ── FIN SECTION CRÉNEAU ── -->
 
-  // ── Étape 1 → Étape 2 ─────────────────────────────────────────
-  btnStep1.addEventListener("click", () => {
-    const name  = document.getElementById("name").value.trim();
-    const email = document.getElementById("email").value.trim();
-    if (!name || !email) {
-      alert("Merci de renseigner votre nom et email.");
-      return;
-    }
-    step1.style.display = "none";
-    step2.style.display = "block";
-    loadSlots();
-  });
+          <button type="submit" class="btn-submit" id="submitBtn">
+            <div class="spinner" id="spinner"></div>
+            <span id="btnText">Envoyer ma demande</span>
+          </button>
 
-  btnBack.addEventListener("click", () => {
-    step2.style.display = "none";
-    step1.style.display = "block";
-  });
-
-  // ── Charger les créneaux via l'API ────────────────────────────
-  async function loadSlots() {
-    slotsContainer.innerHTML = "<p style='color:#9ca3af;'>Chargement…</p>";
-    selectedSlotId = null;
-    selectedInfo.style.display = "none";
-    btnConfirm.style.display = "none";
-
-    try {
-      const res  = await fetch(`${API_BASE}/api/availability?agency_id=${AGENCY_ID}`);
-      const data = await res.json();
-      const slots = data.slots || [];
-
-      if (slots.length === 0) {
-        slotsContainer.innerHTML = "<p style='color:#9ca3af;'>Aucun créneau disponible pour le moment.</p>";
-        return;
-      }
-
-      // Grouper par date
-      const grouped = {};
-      slots.forEach(s => {
-        const dt    = new Date(s.start_at);
-        const dateK = dt.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
-        if (!grouped[dateK]) grouped[dateK] = [];
-        grouped[dateK].push(s);
-      });
-
-      let html = "";
-      for (const [date, daySlots] of Object.entries(grouped)) {
-        html += `<div style="margin-bottom:16px;">
-          <p style="font-size:13px;font-weight:600;text-transform:uppercase;
-            letter-spacing:.08em;color:#9ca3af;margin:0 0 8px;">${date}</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
-        daySlots.forEach(s => {
-          const dt   = new Date(s.start_at);
-          const time = dt.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
-          html += `<button type="button" class="slot-btn"
-            data-id="${s.id}" data-label="${date} à ${time}"
-            style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);
-              background:rgba(255,255,255,0.04);color:#f5f3ee;cursor:pointer;font-size:14px;
-              transition:all 0.2s;">
-            ${time}
-          </button>`;
-        });
-        html += `</div></div>`;
-      }
-      slotsContainer.innerHTML = html;
-
-      // Sélection d'un créneau
-      slotsContainer.querySelectorAll(".slot-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          slotsContainer.querySelectorAll(".slot-btn").forEach(b => {
-            b.style.background = "rgba(255,255,255,0.04)";
-            b.style.borderColor = "rgba(255,255,255,0.15)";
-          });
-          btn.style.background   = "rgba(29,78,216,0.25)";
-          btn.style.borderColor  = "#1d4ed8";
-          selectedSlotId         = btn.dataset.id;
-          selectedLabel.textContent = btn.dataset.label;
-          selectedInfo.style.display = "block";
-          btnConfirm.style.display   = "block";
-        });
-      });
-
-    } catch (err) {
-      slotsContainer.innerHTML = `<p style="color:#ef4444;">Erreur de chargement : ${err.message}</p>`;
-    }
-  }
-
-  // ── Soumission finale ─────────────────────────────────────────
-  document.getElementById("leadForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!selectedSlotId) { alert("Veuillez sélectionner un créneau."); return; }
-
-    btnConfirm.disabled = true;
-    btnConfirm.textContent = "Confirmation en cours…";
-
-    const body = {
-      agency_id:        AGENCY_ID,
-      slot_id:          selectedSlotId,
-      prospect_name:    document.getElementById("name").value.trim(),
-      prospect_email:   document.getElementById("email").value.trim(),
-      prospect_phone:   document.getElementById("phone").value.trim(),
-      prospect_message: document.getElementById("message").value.trim(),
-    };
-
-    try {
-      const res  = await fetch(`${API_BASE}/api/book-appointment`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        step2.style.display = "none";
-        formResult.style.display   = "block";
-        formResult.style.background = "rgba(34,197,94,0.1)";
-        formResult.style.border     = "1px solid rgba(34,197,94,0.3)";
-        formResult.innerHTML = `
-          <div style="font-size:32px;margin-bottom:8px;">✅</div>
-          <strong>Rendez-vous confirmé !</strong><br>
-          <span style="font-size:14px;color:#9ca3af;">
-            Un email de confirmation vous a été envoyé.
-          </span>`;
-      } else {
-        throw new Error(data.detail || "Erreur inconnue");
-      }
-    } catch (err) {
-      formResult.style.display    = "block";
-      formResult.style.background = "rgba(239,68,68,0.1)";
-      formResult.style.border     = "1px solid rgba(239,68,68,0.3)";
-      formResult.innerHTML = `<strong>Erreur :</strong> ${err.message}`;
-      btnConfirm.disabled = false;
-      btnConfirm.textContent = "Confirmer le rendez-vous ✅";
-    }
-  });
-</script>
         </form>
       </section>
+
     </div>
   </main>
 
-  <!-- FOOTER --------------------------------------------------------------- -->
+  <!-- FOOTER -->
   <footer>
     <div class="shell footer-inner">
-      <div>
-        Propulsé par <span class="footer-logo">LeadFlow</span>
-      </div>
-      <div>
-        Flux chiffré &amp; hébergé en Europe — Formulaire réservé aux agences partenaires.
-      </div>
+      <div>Propulsé par <span class="footer-logo">LeadFlow</span></div>
+      <div>Flux chiffré &amp; hébergé en Europe — Formulaire réservé aux agences partenaires.</div>
     </div>
   </footer>
 
-  <!-- SCRIPT --------------------------------------------------------------- -->
   <script>
-    const API_URL = "https://lead-ingest-api-production.up.railway.app/api/ingest-lead";
-    const API_KEY = "amouzougan_ryan05082001";
+    const API_URL    = "https://lead-ingest-api-production.up.railway.app/api/ingest-lead";
+    const API_BASE   = "https://lead-ingest-api-production.up.railway.app";
+    const API_KEY    = "amouzougan_ryan05082001";
+    const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    const params = new URLSearchParams(window.location.search);
-    const AGENCY_ID = params.get("agency");
+    const params     = new URLSearchParams(window.location.search);
+    const AGENCY_ID  = params.get("agency") || "";
 
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    const formCard = document.getElementById("formCard");
+    // ── Vérification agency_id ─────────────────────────────────
+    const formCard   = document.getElementById("formCard");
     const errorState = document.getElementById("errorState");
-    const agencyNameNav = document.getElementById("agencyNameNav");
 
     if (!AGENCY_ID || !UUID_RE.test(AGENCY_ID)) {
-      formCard.style.display = "none";
+      formCard.style.display   = "none";
       errorState.style.display = "block";
     } else {
-      // Prépare le terrain pour afficher un nom d'agence plus tard si tu exposes une API dédiée
-      fetch(`https://lead-ingest-api-production.up.railway.app/api/leads?agency_id=${AGENCY_ID}`, {
-        headers: { "X-API-Key": API_KEY }
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(() => {
-          // placeholder : à remplacer par un vrai GET /api/agencies/{id} quand dispo
-          agencyNameNav.textContent = "Agence LeadFlow partenaire";
-        })
-        .catch(() => {
-          agencyNameNav.textContent = "";
-        });
+      document.getElementById("agencyNameNav").textContent = "Agence LeadFlow partenaire";
+      loadSlots();
     }
 
-    const form = document.getElementById("leadForm");
-    const submitBtn = document.getElementById("submitBtn");
-    const spinner = document.getElementById("spinner");
-    const btnText = document.getElementById("btnText");
+    // ── Créneau sélectionné ────────────────────────────────────
+    let selectedSlotId    = null;
+    let selectedSlotStart = null;
+
+    // ── Charger les créneaux depuis l'API ──────────────────────
+    async function loadSlots() {
+      const container = document.getElementById("slotsContainer");
+      container.innerHTML = '<p style="font-size:0.85rem;color:var(--text-soft);">Chargement…</p>';
+
+      try {
+        const res  = await fetch(`${API_BASE}/api/availability?agency_id=${AGENCY_ID}`);
+        const data = await res.json();
+        const slots = data.slots || [];
+
+        if (!slots.length) {
+          container.innerHTML = '<p style="font-size:0.85rem;color:var(--text-soft);">Aucun créneau disponible pour le moment — vous pouvez quand même envoyer votre demande.</p>';
+          return;
+        }
+
+        // Grouper par date
+        const grouped = {};
+        slots.forEach(s => {
+          const dt    = new Date(s.start_at);
+          const key   = dt.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(s);
+        });
+
+        let html = "";
+        for (const [date, daySlots] of Object.entries(grouped)) {
+          html += `<div class="slots-day">
+            <p class="slots-day-label">${date}</p>
+            <div class="slots-row">`;
+          daySlots.forEach(s => {
+            const time = new Date(s.start_at).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" });
+            html += `<button type="button" class="slot-btn"
+              data-id="${s.id}" data-start="${s.start_at}" data-label="${date} à ${time}">
+              ${time}
+            </button>`;
+          });
+          html += `</div></div>`;
+        }
+        container.innerHTML = html;
+
+        // Clic sur un créneau
+        container.querySelectorAll(".slot-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            container.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("selected"));
+            btn.classList.add("selected");
+            selectedSlotId    = btn.dataset.id;
+            selectedSlotStart = btn.dataset.start;
+            document.getElementById("slotSelectedLabel").textContent = btn.dataset.label;
+            document.getElementById("slotSelectedInfo").classList.add("show");
+          });
+        });
+
+      } catch (err) {
+        container.innerHTML = `<p style="font-size:0.85rem;color:var(--danger);">Impossible de charger les créneaux (${err.message}). Vous pouvez quand même envoyer votre demande.</p>`;
+      }
+    }
+
+    // Bouton "Annuler créneau"
+    document.getElementById("btnClearSlot").addEventListener("click", () => {
+      selectedSlotId    = null;
+      selectedSlotStart = null;
+      document.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("selected"));
+      document.getElementById("slotSelectedInfo").classList.remove("show");
+    });
+
+    // ── Alertes ────────────────────────────────────────────────
     const alertSuccess = document.getElementById("alert-success");
-    const alertError = document.getElementById("alert-error");
-    const errorMsg = document.getElementById("error-msg");
+    const alertError   = document.getElementById("alert-error");
+    const errorMsg     = document.getElementById("error-msg");
 
     function showAlert(type, message) {
       alertSuccess.classList.remove("show");
       alertError.classList.remove("show");
-
       if (type === "success") {
         alertSuccess.classList.add("show");
-        alertSuccess.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        alertSuccess.scrollIntoView({ behavior:"smooth", block:"nearest" });
       } else {
         if (message) errorMsg.textContent = message;
         alertError.classList.add("show");
-        alertError.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        alertError.scrollIntoView({ behavior:"smooth", block:"nearest" });
       }
     }
 
     function setLoading(loading) {
-      submitBtn.disabled = loading;
+      const submitBtn = document.getElementById("submitBtn");
+      const spinner   = document.getElementById("spinner");
+      const btnText   = document.getElementById("btnText");
+      submitBtn.disabled    = loading;
       spinner.style.display = loading ? "block" : "none";
-      btnText.textContent = loading ? "Enregistrement…" : "Enregistrer le lead";
+      btnText.textContent   = loading ? "Envoi en cours…" : "Envoyer ma demande";
     }
 
-    form.addEventListener("submit", async (e) => {
+    // ── Soumission ─────────────────────────────────────────────
+    document.getElementById("leadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       alertSuccess.classList.remove("show");
       alertError.classList.remove("show");
 
-      const name = form.name.value.trim();
-      const email = form.email.value.trim();
-      const phone = form.phone.value.trim();
-      const source = form.source.value;
-      const message = form.message.value.trim();
-      const score = form.querySelector('input[name="score"]:checked')?.value || "B";
+      const name    = document.getElementById("name").value.trim();
+      const email   = document.getElementById("email").value.trim();
+      const phone   = document.getElementById("phone").value.trim();
+      const source  = document.getElementById("source").value;
+      const message = document.getElementById("message").value.trim();
 
-      if (!name || !email || !phone || !source || !message) {
-        showAlert("error", "Veuillez remplir tous les champs obligatoires.");
-        return;
-      }
-
-      if (!AGENCY_ID || !UUID_RE.test(AGENCY_ID)) {
-        showAlert("error", "Lien invalide. Rechargez la page avec un lien de formulaire valide.");
+      if (!name || !email) {
+        showAlert("error", "Veuillez renseigner au minimum votre nom et votre email.");
         return;
       }
 
       setLoading(true);
 
       try {
-        const res = await fetch(API_URL, {
+        // 1. Envoyer le lead
+        const leadRes = await fetch(API_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": API_KEY
-          },
+          headers: { "Content-Type":"application/json", "X-API-Key": API_KEY },
           body: JSON.stringify({
             agency_id: AGENCY_ID,
-            name,
-            email,
-            phone,
-            source,
-            message,
-            // Pour l'instant le score est stocké dans property_reference pour ne pas casser ton backend
-            property_reference: score
+            name, email, phone, source, message,
+            slot_id:    selectedSlotId    || null,
+            slot_start: selectedSlotStart || null,
           })
         });
 
-        if (res.ok) {
-          showAlert("success");
-          form.reset();
-          document.getElementById("score-b").checked = true;
-          setTimeout(() => alertSuccess.classList.remove("show"), 6000);
-        } else {
-          const data = await res.json().catch(() => ({}));
-          showAlert("error", data.detail || "Erreur serveur (" + res.status + ").");
+        if (!leadRes.ok) {
+          const d = await leadRes.json().catch(() => ({}));
+          throw new Error(d.detail || "Erreur serveur (" + leadRes.status + ")");
         }
+
+        // 2. Si un créneau est sélectionné → réserver via l'API
+        if (selectedSlotId) {
+          try {
+            await fetch(`${API_BASE}/api/book-appointment`, {
+              method: "POST",
+              headers: { "Content-Type":"application/json", "X-API-Key": API_KEY },
+              body: JSON.stringify({
+                agency_id:        AGENCY_ID,
+                slot_id:          selectedSlotId,
+                prospect_name:    name,
+                prospect_email:   email,
+                prospect_phone:   phone,
+                prospect_message: message,
+              })
+            });
+          } catch (_) {
+            // Échec silencieux sur la réservation — le lead est déjà enregistré
+          }
+        }
+
+        // Succès
+        showAlert("success");
+        document.getElementById("leadForm").reset();
+        selectedSlotId    = null;
+        selectedSlotStart = null;
+        document.getElementById("slotSelectedInfo").classList.remove("show");
+        loadSlots(); // Recharge les créneaux pour retirer celui pris
+        setTimeout(() => alertSuccess.classList.remove("show"), 7000);
+
       } catch (err) {
-        showAlert("error", "Impossible de contacter le serveur. Vérifiez votre connexion.");
+        showAlert("error", err.message || "Impossible de contacter le serveur. Vérifiez votre connexion.");
       } finally {
         setLoading(false);
       }

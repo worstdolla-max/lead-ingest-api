@@ -267,6 +267,7 @@ class LeadDetail(BaseModel):
     property_reference: Optional[str]
     created_at: str
     summary: Optional[str]
+    manual_score: Optional[str]
     score: Optional[str]
     budget: Optional[str]
     timeline: Optional[str]
@@ -563,8 +564,9 @@ def get_leads(agency_id: str):
         resp = (
             db.table("leads")
             .select(
-                "id, agency_id, name, email, phone, source, message, created_at, "
-                "lead_insights(score, summary)"
+                "id, agency_id, crm_lead_id, name, email, phone, source, message, created_at, manual_score, "
+                "lead_insights(score, summary, score, budget, timeline, property_type, "
+                "location, email_reply_suggestion, tags)"
             )
             .eq("agency_id", agency_id)
             .execute()
@@ -588,6 +590,7 @@ def get_leads(agency_id: str):
                 source=row.get("source"),
                 message=row.get("message"),
                 created_at=row["created_at"],
+                manual_score=row.get("manual_score"),
                 score=score,
                 summary=summary,
             )

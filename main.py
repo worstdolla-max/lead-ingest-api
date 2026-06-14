@@ -640,6 +640,7 @@ def get_lead(lead_id: str):
         property_reference=row.get("property_reference"),
         created_at=row["created_at"],
         summary=insights.get("summary"),
+        manual_score=row.get("manual_score"),
         score=insights.get("score"),
         budget=insights.get("budget"),
         timeline=insights.get("timeline"),

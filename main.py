@@ -230,6 +230,7 @@ class LeadOut(BaseModel):
     source: Optional[str]
     message: str
     created_at: str
+    manual_score: Optional[str]
     score: Optional[str]
     summary: Optional[str]
 

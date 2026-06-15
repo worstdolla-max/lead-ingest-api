@@ -14,7 +14,7 @@ from supabase import create_client, Client
 
 from datetime import datetime, timedelta, timezone
 from datetime import time as dt_time
-import time
+
 
 from fastapi.responses import HTMLResponse as FastAPIHTMLResponse
 
@@ -554,6 +554,13 @@ def ingest_lead(payload: LeadIngest):
     except Exception as e:
         print(">>> Erreur récupération agence / envoi email:", repr(e))
 
+    return {
+        "success": True,
+        "lead_id": lead_id,
+        "score": score,
+        "summary": summary,
+    }
+
 
 @app.get(
     "/api/leads", response_model=List[LeadOut], dependencies=[Depends(verify_api_key)]
@@ -773,8 +780,26 @@ def book_appointment(payload: BookAppointmentPayload):
             .execute()
         )
         lead_id = lead_resp.data[0]["id"]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur création lead : {e}")
+        
+        # Score IA sur le message du prospect
+        insights = analyse_lead_with_claude(
+            payload.prospect_message or "Réservation via calendrier"
+        )
+        try:
+            db.table("lead_insights").insert({
+                "lead_id": lead_id,
+                "summary": insights.get("summary"),
+                "score": insights.get("score", "B"),
+                "budget": insights.get("budget"),
+                "timeline": insights.get("timeline"),
+                "property_type": insights.get("property_type"),
+                "location": insights.get("location"),
+                "email_reply_suggestion": insights.get("email_reply_suggestion"),
+                "tags": insights.get("tags", []),
+            }).execute()
+        
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erreur création lead : {e}")
 
     # 3) Créer le rendez-vous dans appointments
     try:

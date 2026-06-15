@@ -804,23 +804,28 @@ def book_appointment(payload: BookAppointmentPayload):
         ).execute()
     except Exception:
         pass
+
     # 3) Créer le rendez-vous dans appointments
     try:
-        db.table("appointments").insert({
-            "lead_id": lead_id,
-            "agency_id": payload.agency_id,
-            "prospect_name": payload.prospect_name,
-            "prospect_email": payload.prospect_email,
-            "prospect_phone": payload.prospect_phone,
-            "status": "confirmed",
-            "start_at": slot["start_at"],
-        }).execute()
+        db.table("appointments").insert(
+            {
+                "lead_id": lead_id,
+                "agency_id": payload.agency_id,
+                "prospect_name": payload.prospect_name,
+                "prospect_email": payload.prospect_email,
+                "prospect_phone": payload.prospect_phone,
+                "status": "confirmed",
+                "start_at": slot["start_at"],
+            }
+        ).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur création RDV : {e}")
 
     # 4) Marquer le créneau comme réservé
     try:
-        db.table("agency_availability").update({"is_booked": True}).eq("id", payload.slot_id).execute()
+        db.table("agency_availability").update({"is_booked": True}).eq(
+            "id", payload.slot_id
+        ).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur mise à jour créneau : {e}")
 
@@ -835,7 +840,6 @@ def book_appointment(payload: BookAppointmentPayload):
         )
         if agency_resp.data and RESEND_API_KEY:
             agency_email = agency_resp.data[0].get("contact_email")
-            agency_name = agency_resp.data[0].get("name") or "Agence"
             dt_slot = datetime.fromisoformat(slot["start_at"])
             import zoneinfo
             human_date = dt_slot.astimezone(zoneinfo.ZoneInfo("Europe/Paris")).strftime("%A %d %B %Y à %Hh%M")

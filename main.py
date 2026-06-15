@@ -768,25 +768,29 @@ def book_appointment(payload: BookAppointmentPayload):
     try:
         lead_resp = (
             db.table("leads")
-            .insert({
-                "agency_id": payload.agency_id,
-                "name": payload.prospect_name,
-                "email": payload.prospect_email,
-                "phone": payload.prospect_phone,
-                "message": payload.prospect_message or "Réservation via calendrier",
-                "source": "calendrier",
-                
-            })
+            .insert(
+                {
+                    "agency_id": payload.agency_id,
+                    "name": payload.prospect_name,
+                    "email": payload.prospect_email,
+                    "phone": payload.prospect_phone,
+                    "message": payload.prospect_message or "Réservation via calendrier",
+                    "source": "calendrier",
+                }
+            )
             .execute()
         )
         lead_id = lead_resp.data[0]["id"]
-        
-        # Score IA sur le message du prospect
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur création lead : {e}")
+
+    # Score IA sur le message du prospect (non bloquant)
+    try:
         insights = analyse_lead_with_claude(
             payload.prospect_message or "Réservation via calendrier"
         )
-        try:
-            db.table("lead_insights").insert({
+        db.table("lead_insights").insert(
+            {
                 "lead_id": lead_id,
                 "summary": insights.get("summary"),
                 "score": insights.get("score", "B"),
@@ -796,11 +800,10 @@ def book_appointment(payload: BookAppointmentPayload):
                 "location": insights.get("location"),
                 "email_reply_suggestion": insights.get("email_reply_suggestion"),
                 "tags": insights.get("tags", []),
-            }).execute()
-        
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Erreur création lead : {e}")
-
+            }
+        ).execute()
+    except Exception:
+        pass
     # 3) Créer le rendez-vous dans appointments
     try:
         db.table("appointments").insert({

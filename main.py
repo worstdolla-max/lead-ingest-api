@@ -565,7 +565,7 @@ def get_leads(agency_id: str):
             db.table("leads")
             .select(
                 "id, agency_id, crm_lead_id, name, email, phone, source, message, created_at, manual_score, "
-                "lead_insights(score, summary, score, budget, timeline, property_type, "
+                "lead_insights(score, summary, budget, timeline, property_type, "
                 "location, email_reply_suggestion, tags)"
             )
             .eq("agency_id", agency_id)
@@ -611,7 +611,7 @@ def get_lead(lead_id: str):
             db.table("leads")
             .select(
                 "id, agency_id, crm_lead_id, name, email, phone, source, message, "
-                "property_reference, created_at, "
+                "property_reference, created_at, manual_score, "
                 "lead_insights(summary, score, budget, timeline, property_type, "
                 "location, email_reply_suggestion, tags)"
             )

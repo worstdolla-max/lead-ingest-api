@@ -125,7 +125,9 @@ _FALLBACK_INSIGHTS = {
 
 
 def analyse_lead_with_claude(message: str) -> dict:
+    print(">>> ANTHROPIC_API_KEY présente ?", bool(ANTHROPIC_API_KEY))
     if not ANTHROPIC_API_KEY:
+        print(">>> Pas de clé Anthropic")
         return _FALLBACK_INSIGHTS.copy()
 
     try:
@@ -137,6 +139,7 @@ def analyse_lead_with_claude(message: str) -> dict:
             messages=[{"role": "user", "content": message}],
         )
         raw = response.content[0].text.strip()
+        print(">>> Réponse Anthropic brute OK")
 
         if raw.startswith("```"):
             raw = raw.split("```")[1]
@@ -145,11 +148,11 @@ def analyse_lead_with_claude(message: str) -> dict:
             raw = raw.strip()
 
         insights = json.loads(raw)
+        print(">>> JSON Anthropic parsé OK")
         return insights
     except Exception as e:
         print(">>> ANTHROPIC ERROR:", repr(e))
         return _FALLBACK_INSIGHTS.copy()
-
 
 # ---------- API Key auth ----------
 

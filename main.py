@@ -131,7 +131,7 @@ def analyse_lead_with_claude(message: str) -> dict:
     try:
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-3-5-haiku-latest",
             max_tokens=512,
             system=_CLAUDE_SYSTEM,
             messages=[{"role": "user", "content": message}],
@@ -146,7 +146,8 @@ def analyse_lead_with_claude(message: str) -> dict:
 
         insights = json.loads(raw)
         return insights
-    except Exception:
+    except Exception as e:
+        print(">>> ANTHROPIC ERROR:", repr(e))
         return _FALLBACK_INSIGHTS.copy()
 
 
